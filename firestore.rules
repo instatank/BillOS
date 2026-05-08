@@ -33,7 +33,12 @@ service cloud.firestore {
     // --- households ---------------------------------------------------
     match /households/{hid} {
 
-      allow read: if isMember(resource.data);
+      // Members can always read. A non-member can read only while there is
+      // an active invite code on the household — that's how the join flow
+      // checks member count and capacity. Once a second member joins,
+      // inviteCode is cleared and outsiders lose read access again.
+      allow read: if isMember(resource.data)
+                  || (isSignedIn() && resource.data.inviteCode != null);
 
       // Create: caller must be the sole initial member.
       allow create: if isSignedIn()
