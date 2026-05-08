@@ -36,5 +36,5 @@ Project context for Claude Code sessions. Source of truth for *how* we build, no
 - [x] 3. Household creation + invite — create/join, 6-digit code, 24h expiry, regenerate, copy/share, real-time listener, Firestore rules
 - [x] 4. Add bill form — 3 required (name, amount, frequency) + 2 optional (category, next due), validation, IST date anchoring, Firestore write
 - [x] 5. List view — real-time, sorted by `nextDue`, status filter chips (active/paused/cancelled), category dot + relative due, compact topbar with avatar + sign-out, condensed household card
-- [ ] 6. Detail view (edit, pause, cancel, reactivate)
+- [x] 6. Detail view — tap row swaps Bills card to detail panel (back, hero, KV list, status pill); Edit reuses the add-bill form pre-populated; Pause/Reactivate/Cancel update Firestore status and auto-switch the filter so the bill stays oriented
 - [ ] 7. PWA polish + Vercel deploy (icons, caching, live URL)

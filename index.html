@@ -211,6 +211,55 @@
     color: var(--text-dim); font-size: 13px; text-align: center; padding: var(--space-4) 0;
   }
 
+  /* Detail / edit panel header */
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  }
+  .back-btn {
+    min-height: 32px; padding: 4px 10px 4px 6px;
+    background: transparent; border: 0; color: var(--text-dim);
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 13px; border-radius: var(--radius-sm);
+  }
+  .back-btn:hover { color: var(--text); background: var(--bg-elev-2); }
+
+  /* Detail */
+  .detail-hero { display: flex; flex-direction: column; gap: 4px; }
+  .detail-title-row { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+  .detail-title {
+    margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+  }
+  .detail-title.is-cancelled { text-decoration: line-through; color: var(--text-dim); }
+  .detail-amount {
+    font-size: 28px; font-weight: 600; letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .status-pill { padding: 2px 8px; font-size: 11px; }
+  .status-pill.paused    { color: var(--warn);    border-color: rgba(240, 176, 87, 0.4);  background: rgba(240, 176, 87, 0.08); }
+  .status-pill.cancelled { color: var(--danger);  border-color: rgba(239, 107, 107, 0.4); background: rgba(239, 107, 107, 0.08); }
+
+  .kv-list { display: flex; flex-direction: column; }
+  .kv-row {
+    display: grid; grid-template-columns: 120px 1fr; gap: var(--space-3);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .kv-row:last-child { border-bottom: 0; }
+  .kv-row .k { color: var(--text-dim); }
+  .kv-row .v { color: var(--text); overflow-wrap: anywhere; }
+  .kv-row .v.dim { color: var(--text-muted); }
+
+  .detail-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .detail-actions > button { flex: 1; min-width: 110px; }
+  .btn-danger {
+    background: transparent; color: var(--danger); border-color: rgba(239, 107, 107, 0.35);
+  }
+  .btn-danger:hover { background: rgba(239, 107, 107, 0.08); }
+
+  .form-title { font-size: 16px; font-weight: 600; margin: 0; }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -302,7 +351,7 @@
         <section id="hh-bills" class="stack">
 
           <div class="card stack">
-            <div class="bills-head">
+            <div id="billsHead" class="bills-head">
               <h3 class="h-section-title" style="margin: 0;">Bills</h3>
               <div id="billFilter" class="filter-chips" role="tablist">
                 <button class="filter-chip active" data-status="active"    role="tab">Active</button>
@@ -310,6 +359,15 @@
                 <button class="filter-chip"        data-status="cancelled" role="tab">Cancelled</button>
               </div>
               <button id="btnToggleAddBill" class="btn-primary btn-sm">+ Add</button>
+            </div>
+
+            <div id="formHead" class="panel-head hidden">
+              <button type="button" class="back-btn" id="btnFormBack" aria-label="Back to list">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+                <span>Back</span>
+              </button>
+              <h3 id="formTitle" class="form-title">New bill</h3>
+              <span style="width: 56px;"></span>
             </div>
 
             <form id="addBillForm" class="stack hidden" autocomplete="off">
@@ -362,6 +420,8 @@
 
             <div id="billsList" class="bills-list"></div>
             <div id="billsEmpty" class="bills-empty hidden">No bills yet. Tap + Add to add your first one.</div>
+
+            <div id="billsDetail" class="stack hidden"></div>
           </div>
 
         </section>
@@ -863,9 +923,33 @@
   }
 
   // -- Bills: render --------------------------------------------------
-  const billsListEl  = document.getElementById("billsList");
-  const billsEmptyEl = document.getElementById("billsEmpty");
-  const filterEl     = document.getElementById("billFilter");
+  const billsListEl   = document.getElementById("billsList");
+  const billsEmptyEl  = document.getElementById("billsEmpty");
+  const billsDetailEl = document.getElementById("billsDetail");
+  const billsHeadEl   = document.getElementById("billsHead");
+  const formHeadEl    = document.getElementById("formHead");
+  const formTitleEl   = document.getElementById("formTitle");
+  const filterEl      = document.getElementById("billFilter");
+
+  // Panel mode: "list" (default), "form" (create or edit), "detail"
+  let panelMode = "list";
+  let selectedBillId = null;
+  let editingBillId  = null;
+
+  function setPanelMode(mode) {
+    panelMode = mode;
+    const isList   = mode === "list";
+    const isForm   = mode === "form";
+    const isDetail = mode === "detail";
+
+    billsHeadEl.classList.toggle("hidden", !isList);
+    billsListEl.classList.toggle("hidden", !isList);
+    // billsEmpty is managed by renderBills
+    if (!isList) billsEmptyEl.classList.add("hidden");
+    document.getElementById("addBillForm").classList.toggle("hidden", !isForm);
+    formHeadEl.classList.toggle("hidden", !isForm);
+    billsDetailEl.classList.toggle("hidden", !isDetail);
+  }
 
   filterEl.addEventListener("click", (ev) => {
     const btn = ev.target.closest("button[data-status]");
@@ -876,6 +960,13 @@
   });
 
   function renderBills() {
+    // If we're showing a detail view, keep it in sync with the latest snapshot
+    if (panelMode === "detail" && selectedBillId) {
+      const b = bills.find(x => x.id === selectedBillId);
+      if (!b) { setPanelMode("list"); selectedBillId = null; }
+      else renderDetail(b);
+    }
+
     const visible = bills
       .filter(b => (b.status || "active") === billStatusFilter)
       .sort((a, b) => {
@@ -884,22 +975,22 @@
         const ta = da ? da.getTime() : Number.POSITIVE_INFINITY;
         const tb = dbb ? dbb.getTime() : Number.POSITIVE_INFINITY;
         if (ta !== tb) return ta - tb;
-        // tie-break: most recently created first
         const ca = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
         const cb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
         return cb - ca;
       });
 
     billsListEl.innerHTML = "";
-    if (visible.length === 0) {
-      billsEmptyEl.classList.remove("hidden");
-      billsEmptyEl.textContent = bills.length === 0
-        ? "No bills yet. Tap + Add to add your first one."
-        : `No ${billStatusFilter} bills.`;
-      return;
+    if (panelMode === "list") {
+      if (visible.length === 0) {
+        billsEmptyEl.classList.remove("hidden");
+        billsEmptyEl.textContent = bills.length === 0
+          ? "No bills yet. Tap + Add to add your first one."
+          : `No ${billStatusFilter} bills.`;
+      } else {
+        billsEmptyEl.classList.add("hidden");
+      }
     }
-    billsEmptyEl.classList.add("hidden");
-
     visible.forEach(b => billsListEl.appendChild(renderBillRow(b)));
   }
 
@@ -926,9 +1017,126 @@
     return btn;
   }
 
-  // Sub-task 6 will replace this stub.
+  // -- Bills: detail view ---------------------------------------------
+  const CAT_LABEL = {
+    utilities: "Utilities", subscriptions: "Subscriptions", credit_cards: "Credit cards",
+    people: "People", other: "Other",
+  };
+  function fmtFullDate(d) {
+    if (!d) return "—";
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  function memberLabel(uid) {
+    if (!uid) return "—";
+    if (uid === "shared") return "Shared";
+    const profile = currentHousehold && currentHousehold.memberProfiles && currentHousehold.memberProfiles[uid];
+    if (!profile) return uid === (auth.currentUser && auth.currentUser.uid) ? "You" : "Member";
+    return (uid === (auth.currentUser && auth.currentUser.uid) ? "You" : (profile.name || profile.email || "Member"));
+  }
+
   function openBillDetail(billId) {
-    console.log("[bills] open detail (sub-task 6 stub)", billId);
+    selectedBillId = billId;
+    const b = bills.find(x => x.id === billId);
+    if (!b) return;
+    setPanelMode("detail");
+    renderDetail(b);
+  }
+
+  function renderDetail(b) {
+    const cat = b.category || "other";
+    const due = dateFromBill(b.nextDue);
+    const dueText = due ? `${dueRelative(due)} · ${fmtFullDate(due)}` : "no date";
+    const dueCls  = dueClass(due);
+    const created = dateFromBill(b.createdAt);
+    const isPaused    = b.status === "paused";
+    const isCancelled = b.status === "cancelled";
+
+    const statusPill =
+      isPaused    ? `<span class="pill status-pill paused">Paused</span>` :
+      isCancelled ? `<span class="pill status-pill cancelled">Cancelled</span>` : "";
+
+    const notesRow = b.notes
+      ? `<div class="kv-row"><div class="k">Notes</div><div class="v">${escapeHtml(b.notes)}</div></div>`
+      : `<div class="kv-row"><div class="k">Notes</div><div class="v dim">—</div></div>`;
+
+    const actions = isCancelled
+      ? `<button id="btnReactivate" class="btn-primary">Reactivate</button>
+         <button id="btnEditBill" class="btn-ghost">Edit</button>`
+      : `<button id="btnEditBill" class="btn-primary">Edit</button>
+         <button id="btnPauseBill" class="btn-ghost">${isPaused ? "Reactivate" : "Pause"}</button>
+         <button id="btnCancelBill" class="btn-danger">Cancel bill</button>`;
+
+    billsDetailEl.innerHTML = `
+      <div class="panel-head">
+        <button type="button" class="back-btn" id="btnDetailBack" aria-label="Back to list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          <span>Bills</span>
+        </button>
+        ${statusPill}
+      </div>
+
+      <div class="detail-hero">
+        <div class="detail-title-row">
+          <span class="cat-dot cat-${escapeHtml(cat)}" style="margin-right: 2px;"></span>
+          <h2 class="detail-title ${isCancelled ? "is-cancelled" : ""}">${escapeHtml(b.name || "Untitled")}</h2>
+        </div>
+        <div class="detail-amount">${fmtINR(b.amount || 0)}</div>
+      </div>
+
+      <div class="kv-list">
+        <div class="kv-row"><div class="k">Frequency</div><div class="v">${escapeHtml(FREQ_LABEL[b.frequency] || b.frequency || "—")}</div></div>
+        <div class="kv-row"><div class="k">Category</div><div class="v">${escapeHtml(CAT_LABEL[cat] || "Other")}</div></div>
+        <div class="kv-row"><div class="k">Next due</div><div class="v ${dueCls}">${escapeHtml(dueText)}</div></div>
+        <div class="kv-row"><div class="k">Who pays</div><div class="v">${escapeHtml(memberLabel(b.owner))}</div></div>
+        ${notesRow}
+        <div class="kv-row"><div class="k">Added</div><div class="v dim">${escapeHtml(memberLabel(b.createdBy))}${created ? " · " + fmtFullDate(created) : ""}</div></div>
+      </div>
+
+      <div class="detail-actions">${actions}</div>
+    `;
+
+    document.getElementById("btnDetailBack").addEventListener("click", backToList);
+    const btnEdit = document.getElementById("btnEditBill");
+    if (btnEdit) btnEdit.addEventListener("click", () => openEditBill(b));
+    const btnPause = document.getElementById("btnPauseBill");
+    if (btnPause) btnPause.addEventListener("click", () => updateStatus(b.id, isPaused ? "active" : "paused"));
+    const btnCancel = document.getElementById("btnCancelBill");
+    if (btnCancel) btnCancel.addEventListener("click", () => updateStatus(b.id, "cancelled"));
+    const btnReact = document.getElementById("btnReactivate");
+    if (btnReact) btnReact.addEventListener("click", () => updateStatus(b.id, "active"));
+  }
+
+  function backToList() {
+    selectedBillId = null;
+    setPanelMode("list");
+    renderBills();
+  }
+
+  async function updateStatus(billId, newStatus) {
+    if (!currentHouseholdId) return;
+    const allButtons = billsDetailEl.querySelectorAll("button");
+    allButtons.forEach(b => b.disabled = true);
+    try {
+      const ref = doc(db, "households", currentHouseholdId, "bills", billId);
+      await setDoc(ref, { status: newStatus, updatedAt: serverTimestamp() }, { merge: true });
+      // Snapshot will fire; renderBills will re-render the open detail.
+      // If transitioning to cancelled, also flip the active filter to keep the user
+      // oriented when they return to the list (so it's not "where did it go?").
+      if (newStatus === "cancelled") {
+        billStatusFilter = "cancelled";
+      } else if (newStatus === "active") {
+        billStatusFilter = "active";
+      } else if (newStatus === "paused") {
+        billStatusFilter = "paused";
+      }
+      [...filterEl.querySelectorAll("button")].forEach(b => b.classList.toggle("active", b.dataset.status === billStatusFilter));
+    } catch (err) {
+      console.error("[bills] status update failed", err);
+      alert("Couldn't update the bill: " + (err.message || err.code));
+      allButtons.forEach(b => b.disabled = false);
+    }
   }
 
   // -- Bills: add bill form -------------------------------------------
@@ -950,25 +1158,53 @@
     billEls.error.textContent = msg;
     billEls.error.classList.remove("hidden");
   }
+  function resetForm() {
+    billEls.form.reset();
+    billEls.category.value  = "other";
+    billEls.frequency.value = "monthly";
+  }
   function openAddBill() {
     showBillError(null);
-    billEls.form.reset();
-    billEls.category.value  = "other";
-    billEls.frequency.value = "monthly";
-    billEls.form.classList.remove("hidden");
-    billEls.toggle.classList.add("hidden");
+    editingBillId = null;
+    resetForm();
+    formTitleEl.textContent = "New bill";
+    billEls.save.textContent = "Save bill";
+    setPanelMode("form");
     setTimeout(() => billEls.name.focus(), 0);
   }
-  function closeAddBill() {
-    billEls.form.classList.add("hidden");
-    billEls.toggle.classList.remove("hidden");
+  function openEditBill(b) {
     showBillError(null);
-    billEls.form.reset();
-    billEls.category.value  = "other";
-    billEls.frequency.value = "monthly";
+    editingBillId = b.id;
+    resetForm();
+    billEls.name.value      = b.name || "";
+    billEls.amount.value    = b.amount != null ? String(b.amount) : "";
+    billEls.frequency.value = b.frequency || "monthly";
+    billEls.category.value  = b.category || "other";
+    const due = dateFromBill(b.nextDue);
+    billEls.nextDue.value = due
+      ? `${due.getFullYear()}-${String(due.getMonth()+1).padStart(2,"0")}-${String(due.getDate()).padStart(2,"0")}`
+      : "";
+    formTitleEl.textContent = `Edit · ${b.name || "bill"}`;
+    billEls.save.textContent = "Update bill";
+    setPanelMode("form");
+    setTimeout(() => billEls.name.focus(), 0);
+  }
+  function closeForm({ returnTo } = {}) {
+    showBillError(null);
+    resetForm();
+    const wasEditingId = editingBillId;
+    editingBillId = null;
+    if (returnTo === "detail" && wasEditingId) {
+      // Go back to the detail panel for the bill we were editing.
+      openBillDetail(wasEditingId);
+    } else {
+      setPanelMode("list");
+      renderBills();
+    }
   }
   billEls.toggle.addEventListener("click", openAddBill);
-  billEls.cancel.addEventListener("click", closeAddBill);
+  billEls.cancel.addEventListener("click", () => closeForm({ returnTo: editingBillId ? "detail" : "list" }));
+  document.getElementById("btnFormBack").addEventListener("click", () => closeForm({ returnTo: editingBillId ? "detail" : "list" }));
 
   billEls.form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -1004,35 +1240,45 @@
       nextDue = Timestamp.fromMillis(ms);
     }
 
+    const isEdit = !!editingBillId;
     billEls.save.disabled = true;
-    billEls.save.textContent = "Saving…";
+    const originalLabel = billEls.save.textContent;
+    billEls.save.textContent = isEdit ? "Updating…" : "Saving…";
     try {
-      const billRef = doc(collection(db, "households", currentHouseholdId, "bills"));
-      await setDoc(billRef, {
-        name,
-        amount,
-        frequency,
-        category,
-        owner: "shared",
-        nextDue,
-        status: "active",
-        notes: null,
-        createdAt: serverTimestamp(),
-        createdBy: user.uid,
-        updatedAt: serverTimestamp(),
-      });
-      // Switch the filter to active so the new bill is visible right away.
-      if (billStatusFilter !== "active") {
-        billStatusFilter = "active";
-        [...filterEl.querySelectorAll("button")].forEach(b => b.classList.toggle("active", b.dataset.status === "active"));
+      if (isEdit) {
+        const billRef = doc(db, "households", currentHouseholdId, "bills", editingBillId);
+        await setDoc(billRef, {
+          name, amount, frequency, category, nextDue,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        const wasEditingId = editingBillId;
+        closeForm({ returnTo: "list" }); // resets editingBillId; we use the captured id below
+        // Reopen detail for the bill we just updated
+        openBillDetail(wasEditingId);
+      } else {
+        const billRef = doc(collection(db, "households", currentHouseholdId, "bills"));
+        await setDoc(billRef, {
+          name, amount, frequency, category,
+          owner: "shared",
+          nextDue,
+          status: "active",
+          notes: null,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid,
+          updatedAt: serverTimestamp(),
+        });
+        if (billStatusFilter !== "active") {
+          billStatusFilter = "active";
+          [...filterEl.querySelectorAll("button")].forEach(b => b.classList.toggle("active", b.dataset.status === "active"));
+        }
+        closeForm({ returnTo: "list" });
       }
-      closeAddBill();
     } catch (err) {
       console.error("[bills] save failed", err);
       showBillError("Couldn't save the bill: " + (err.message || err.code));
     } finally {
       billEls.save.disabled = false;
-      billEls.save.textContent = "Save bill";
+      billEls.save.textContent = originalLabel;
     }
   });
 
@@ -1051,6 +1297,13 @@
       topbarUser.classList.add("hidden");
       showHHError(null);
       showSignInError(null);
+      // Reset bills panel state so a re-login lands on a clean list.
+      selectedBillId = null;
+      editingBillId  = null;
+      billStatusFilter = "active";
+      [...filterEl.querySelectorAll("button")].forEach(b => b.classList.toggle("active", b.dataset.status === "active"));
+      resetForm();
+      setPanelMode("list");
       show("signedOut");
     }
   });
