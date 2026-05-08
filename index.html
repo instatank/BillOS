@@ -90,6 +90,47 @@
     color: var(--danger); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px;
     text-align: left;
   }
+  .banner-info {
+    background: rgba(122, 162, 255, 0.08); border-color: rgba(122, 162, 255, 0.35); color: var(--accent);
+  }
+  .banner-warn {
+    background: rgba(240, 176, 87, 0.08); border-color: rgba(240, 176, 87, 0.35); color: var(--warn);
+  }
+
+  .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .h-title { margin: 0; font-size: 18px; font-weight: 600; }
+  .h-section-title { margin: 0; font-size: 13px; color: var(--text-dim); font-weight: 500; }
+
+  input[type="text"], input[type="number"], input[type="date"], select, textarea {
+    font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px; width: 100%; min-height: 44px;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  input::placeholder { color: var(--text-muted); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-row { display: flex; gap: var(--space-2); }
+  .field-row > * { flex: 1; }
+
+  .divider { height: 1px; background: var(--border); border: 0; margin: var(--space-2) 0; }
+
+  .invite-code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 28px; letter-spacing: 0.25em; font-weight: 600; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 14px 16px; text-align: center;
+  }
+  .code-input {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 20px; letter-spacing: 0.2em; text-align: center;
+  }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-elev-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--text-dim);
+  }
+  .pill.you { color: var(--accent); border-color: rgba(122, 162, 255, 0.35); background: rgba(122, 162, 255, 0.08); }
 
   .hidden { display: none !important; }
 </style>
@@ -127,9 +168,75 @@
       </div>
     </section>
 
-    <section class="card stack" style="margin-top: var(--space-4);">
-      <div class="muted small">You're signed in. Household setup ships in sub-task 3 — for now this is your home.</div>
-    </section>
+    <!-- Household area: one of three sub-views below shows at any time. -->
+    <div id="household-area" style="margin-top: var(--space-4);">
+
+      <section id="hh-loading" class="card stack">
+        <div class="muted small">Loading your household…</div>
+      </section>
+
+      <section id="hh-none" class="card stack hidden">
+        <h2 class="h-title">Set up your household</h2>
+        <p class="muted small" style="margin: 0;">A household is shared between you and one other person. You'll see the same bills and updates in real time.</p>
+
+        <div id="hhError" class="banner hidden"></div>
+
+        <div class="stack" style="margin-top: var(--space-2);">
+          <div class="label">Create a new household</div>
+          <div class="field">
+            <input id="hhCreateName" type="text" placeholder="Household name (e.g., Safdarjung)" maxlength="40" />
+          </div>
+          <button id="btnCreateHousehold" class="btn-primary">Create household</button>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="stack">
+          <div class="label">Or join with a 6-digit code</div>
+          <div class="field">
+            <input id="hhJoinCode" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
+          </div>
+          <button id="btnJoinHousehold">Join household</button>
+        </div>
+      </section>
+
+      <section id="hh-has" class="stack hidden">
+        <div class="card stack">
+          <div class="row" style="justify-content: space-between;">
+            <div>
+              <div class="label">Household</div>
+              <h2 id="hhName" class="h-title" style="margin-top: 4px;">—</h2>
+            </div>
+            <button id="btnLeaveHidden" class="btn-ghost small hidden">Leave</button>
+          </div>
+
+          <div class="stack" style="gap: 6px;">
+            <div class="h-section-title">Members</div>
+            <div id="hhMembers" class="row" style="flex-wrap: wrap; gap: 6px;"></div>
+          </div>
+        </div>
+
+        <section id="hh-invite" class="card stack hidden">
+          <div class="row" style="justify-content: space-between;">
+            <h3 class="h-section-title" style="margin: 0;">Invite the second member</h3>
+            <button id="btnRegenerate" class="btn-ghost small">Regenerate</button>
+          </div>
+          <div id="hhInviteCode" class="invite-code">— — — — — —</div>
+          <div id="hhInviteMeta" class="muted small" style="text-align: center;">Expires in —</div>
+          <div id="hhInviteExpired" class="banner banner-warn hidden">This invite code has expired. Tap Regenerate to make a new one.</div>
+          <div class="row" style="gap: var(--space-2);">
+            <button id="btnCopyCode" style="flex: 1;">Copy code</button>
+            <button id="btnShareCode" style="flex: 1;">Share</button>
+          </div>
+          <div class="muted small" style="text-align: center;">Share this with the second person. The code stops working once they join, or after 24 hours.</div>
+        </section>
+
+        <section id="hh-bills" class="card stack">
+          <div class="muted small">Your bills will live here. Adding bills ships in sub-task 4.</div>
+        </section>
+      </section>
+
+    </div>
   </main>
 </div>
 
@@ -140,7 +247,10 @@
     getAuth, onAuthStateChanged, GoogleAuthProvider,
     signInWithPopup, signOut, browserLocalPersistence, setPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    getFirestore, collection, doc, getDoc, setDoc, deleteDoc,
+    query, where, onSnapshot, runTransaction, serverTimestamp, Timestamp, writeBatch
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey:            "AIzaSyCNc_WFupX5qJEULas4_Ovi7wnzsdVoUXY",
@@ -231,9 +341,347 @@
     }
   }
 
+  // -- Household: state ------------------------------------------------
+  const hhEls = {
+    loading: document.getElementById("hh-loading"),
+    none:    document.getElementById("hh-none"),
+    has:     document.getElementById("hh-has"),
+    error:   document.getElementById("hhError"),
+
+    createNameInput: document.getElementById("hhCreateName"),
+    btnCreate:       document.getElementById("btnCreateHousehold"),
+    joinCodeInput:   document.getElementById("hhJoinCode"),
+    btnJoin:         document.getElementById("btnJoinHousehold"),
+
+    name:            document.getElementById("hhName"),
+    members:         document.getElementById("hhMembers"),
+
+    invite:          document.getElementById("hh-invite"),
+    inviteCode:      document.getElementById("hhInviteCode"),
+    inviteMeta:      document.getElementById("hhInviteMeta"),
+    inviteExpired:   document.getElementById("hhInviteExpired"),
+    btnRegenerate:   document.getElementById("btnRegenerate"),
+    btnCopy:         document.getElementById("btnCopyCode"),
+    btnShare:        document.getElementById("btnShareCode"),
+  };
+
+  let unsubHousehold = null;
+  let currentHouseholdId = null;
+  let currentHousehold = null;
+  let inviteTicker = null;
+
+  function showHHView(name) {
+    [hhEls.loading, hhEls.none, hhEls.has].forEach(el => el.classList.add("hidden"));
+    if (name === "loading") hhEls.loading.classList.remove("hidden");
+    if (name === "none")    hhEls.none.classList.remove("hidden");
+    if (name === "has")     hhEls.has.classList.remove("hidden");
+  }
+  function showHHError(msg) {
+    if (!msg) { hhEls.error.classList.add("hidden"); hhEls.error.textContent = ""; return; }
+    hhEls.error.textContent = msg;
+    hhEls.error.classList.remove("hidden");
+  }
+
+  // -- Household: helpers ---------------------------------------------
+  function generateCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+  function profileFor(user) {
+    return {
+      name:    user.displayName || "",
+      email:   user.email       || "",
+      photoURL: user.photoURL   || "",
+    };
+  }
+  function formatHHMMRemaining(ms) {
+    if (ms <= 0) return "0m";
+    const totalMin = Math.floor(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h <= 0) return `${m}m`;
+    return `${h}h ${m}m`;
+  }
+
+  // -- Household: subscribe to the user's household -------------------
+  function subscribeToHousehold(uid) {
+    if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
+    showHHView("loading");
+    currentHouseholdId = null;
+    currentHousehold   = null;
+
+    const q = query(collection(db, "households"), where("members", "array-contains", uid));
+    unsubHousehold = onSnapshot(q, (snap) => {
+      if (snap.empty) {
+        currentHouseholdId = null;
+        currentHousehold = null;
+        renderHousehold(null);
+        showHHView("none");
+        return;
+      }
+      const docSnap = snap.docs[0];
+      currentHouseholdId = docSnap.id;
+      currentHousehold   = docSnap.data();
+      renderHousehold(currentHousehold);
+      showHHView("has");
+    }, (err) => {
+      console.error("[household] snapshot failed", err);
+      showHHError("Couldn't load your household: " + (err.message || err.code));
+      showHHView("none");
+    });
+  }
+
+  // -- Household: render ----------------------------------------------
+  function renderHousehold(hh) {
+    if (inviteTicker) { clearInterval(inviteTicker); inviteTicker = null; }
+    if (!hh) return;
+
+    hhEls.name.textContent = hh.displayName || "Our Household";
+
+    // Members
+    hhEls.members.innerHTML = "";
+    const me = auth.currentUser && auth.currentUser.uid;
+    (hh.members || []).forEach(uid => {
+      const profile = (hh.memberProfiles && hh.memberProfiles[uid]) || {};
+      const label = profile.name || profile.email || "Member";
+      const pill = document.createElement("span");
+      pill.className = "pill" + (uid === me ? " you" : "");
+      pill.textContent = label + (uid === me ? " (you)" : "");
+      hhEls.members.appendChild(pill);
+    });
+
+    // Invite section visibility: only when fewer than 2 members
+    const memberCount = (hh.members || []).length;
+    if (memberCount >= 2) {
+      hhEls.invite.classList.add("hidden");
+      return;
+    }
+    hhEls.invite.classList.remove("hidden");
+
+    if (!hh.inviteCode) {
+      hhEls.inviteCode.textContent = "— — — — — —";
+      hhEls.inviteMeta.textContent = "No active invite. Tap Regenerate to create one.";
+      hhEls.inviteExpired.classList.add("hidden");
+      return;
+    }
+
+    hhEls.inviteCode.textContent = hh.inviteCode.split("").join(" ");
+
+    const expiresAtMs = hh.inviteCodeExpiresAt && hh.inviteCodeExpiresAt.toMillis
+      ? hh.inviteCodeExpiresAt.toMillis() : null;
+
+    function tick() {
+      if (!expiresAtMs) {
+        hhEls.inviteMeta.textContent = "No expiry set.";
+        hhEls.inviteExpired.classList.add("hidden");
+        return;
+      }
+      const remaining = expiresAtMs - Date.now();
+      if (remaining <= 0) {
+        hhEls.inviteMeta.textContent = "Expired";
+        hhEls.inviteExpired.classList.remove("hidden");
+      } else {
+        hhEls.inviteMeta.textContent = "Expires in " + formatHHMMRemaining(remaining);
+        hhEls.inviteExpired.classList.add("hidden");
+      }
+    }
+    tick();
+    inviteTicker = setInterval(tick, 30 * 1000);
+  }
+
+  // -- Household: create ----------------------------------------------
+  hhEls.btnCreate.addEventListener("click", async () => {
+    showHHError(null);
+    const user = auth.currentUser;
+    if (!user) return;
+    const displayName = (hhEls.createNameInput.value || "").trim() || "Our Household";
+
+    hhEls.btnCreate.disabled = true;
+    const original = hhEls.btnCreate.textContent;
+    hhEls.btnCreate.textContent = "Creating…";
+
+    try {
+      const householdRef = doc(collection(db, "households"));
+      const code = await reserveUniqueCode(householdRef.id, user.uid);
+      const expiresAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
+
+      const batch = writeBatch(db);
+      batch.set(householdRef, {
+        displayName,
+        createdAt: serverTimestamp(),
+        createdBy: user.uid,
+        members: [user.uid],
+        memberProfiles: { [user.uid]: profileFor(user) },
+        inviteCode: code,
+        inviteCodeExpiresAt: expiresAt,
+      });
+      batch.set(doc(db, "inviteCodes", code), {
+        householdId: householdRef.id,
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        expiresAt,
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error("[household] create failed", err);
+      showHHError("Couldn't create household: " + (err.message || err.code));
+    } finally {
+      hhEls.btnCreate.disabled = false;
+      hhEls.btnCreate.textContent = original;
+    }
+  });
+
+  async function reserveUniqueCode(householdId, uid) {
+    // 6-digit codes; 900k space, max 1 active code per household → collisions extremely rare.
+    // Try a few random codes; bail with error if all collide (effectively never).
+    for (let i = 0; i < 8; i++) {
+      const code = generateCode();
+      const ref  = doc(db, "inviteCodes", code);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return code;
+    }
+    throw new Error("Couldn't generate a unique invite code. Please try again.");
+  }
+
+  // -- Household: join via code ---------------------------------------
+  hhEls.btnJoin.addEventListener("click", async () => {
+    showHHError(null);
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const raw = (hhEls.joinCodeInput.value || "").replace(/\D/g, "");
+    if (raw.length !== 6) {
+      showHHError("Enter the 6-digit code exactly as shared with you.");
+      return;
+    }
+
+    hhEls.btnJoin.disabled = true;
+    const original = hhEls.btnJoin.textContent;
+    hhEls.btnJoin.textContent = "Joining…";
+
+    try {
+      const codeRef = doc(db, "inviteCodes", raw);
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) throw new Error("That code doesn't match any household.");
+      const codeData = codeSnap.data();
+      const expiresAtMs = codeData.expiresAt && codeData.expiresAt.toMillis
+        ? codeData.expiresAt.toMillis() : 0;
+      if (expiresAtMs && expiresAtMs < Date.now()) {
+        throw new Error("That code has expired. Ask the other person to regenerate it.");
+      }
+
+      const householdRef = doc(db, "households", codeData.householdId);
+      await runTransaction(db, async (tx) => {
+        const hhSnap = await tx.get(householdRef);
+        if (!hhSnap.exists()) throw new Error("Household no longer exists.");
+        const hh = hhSnap.data();
+        const members = hh.members || [];
+        if (members.includes(user.uid)) return; // already a member, no-op
+        if (members.length >= 2) throw new Error("This household is already full (max 2 members).");
+
+        const newMembers = [...members, user.uid];
+        const newProfiles = { ...(hh.memberProfiles || {}), [user.uid]: profileFor(user) };
+        tx.update(householdRef, {
+          members: newMembers,
+          memberProfiles: newProfiles,
+          inviteCode: null,
+          inviteCodeExpiresAt: null,
+        });
+        tx.delete(codeRef);
+      });
+    } catch (err) {
+      console.error("[household] join failed", err);
+      showHHError(err.message || "Couldn't join that household.");
+    } finally {
+      hhEls.btnJoin.disabled = false;
+      hhEls.btnJoin.textContent = original;
+    }
+  });
+
+  // -- Household: regenerate code -------------------------------------
+  hhEls.btnRegenerate.addEventListener("click", async () => {
+    showHHError(null);
+    const user = auth.currentUser;
+    if (!user || !currentHouseholdId || !currentHousehold) return;
+
+    hhEls.btnRegenerate.disabled = true;
+    const original = hhEls.btnRegenerate.textContent;
+    hhEls.btnRegenerate.textContent = "Working…";
+
+    try {
+      const newCode = await reserveUniqueCode(currentHouseholdId, user.uid);
+      const expiresAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
+      const oldCode = currentHousehold.inviteCode;
+
+      const batch = writeBatch(db);
+      batch.update(doc(db, "households", currentHouseholdId), {
+        inviteCode: newCode,
+        inviteCodeExpiresAt: expiresAt,
+      });
+      batch.set(doc(db, "inviteCodes", newCode), {
+        householdId: currentHouseholdId,
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        expiresAt,
+      });
+      if (oldCode && oldCode !== newCode) {
+        batch.delete(doc(db, "inviteCodes", oldCode));
+      }
+      await batch.commit();
+    } catch (err) {
+      console.error("[household] regenerate failed", err);
+      showHHError("Couldn't regenerate code: " + (err.message || err.code));
+    } finally {
+      hhEls.btnRegenerate.disabled = false;
+      hhEls.btnRegenerate.textContent = original;
+    }
+  });
+
+  // -- Household: copy / share invite ---------------------------------
+  hhEls.btnCopy.addEventListener("click", async () => {
+    if (!currentHousehold || !currentHousehold.inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(currentHousehold.inviteCode);
+      const original = hhEls.btnCopy.textContent;
+      hhEls.btnCopy.textContent = "Copied!";
+      setTimeout(() => { hhEls.btnCopy.textContent = original; }, 1500);
+    } catch (err) {
+      console.warn("[household] copy failed", err);
+      showHHError("Couldn't copy automatically. Long-press the code to copy it.");
+    }
+  });
+
+  hhEls.btnShare.addEventListener("click", async () => {
+    if (!currentHousehold || !currentHousehold.inviteCode) return;
+    const code = currentHousehold.inviteCode;
+    const text = `Join our BillOS household with code ${code} (expires in 24h).`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "BillOS invite", text }); }
+      catch (_) { /* user cancelled */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = hhEls.btnShare.textContent;
+        hhEls.btnShare.textContent = "Copied invite!";
+        setTimeout(() => { hhEls.btnShare.textContent = original; }, 1500);
+      } catch (_) {}
+    }
+  });
+
+  // -- Auth → household lifecycle -------------------------------------
   onAuthStateChanged(auth, (user) => {
-    if (user) { renderUser(user); show("signedIn"); }
-    else      { showSignInError(null); show("signedOut"); }
+    if (user) {
+      renderUser(user);
+      show("signedIn");
+      subscribeToHousehold(user.uid);
+    } else {
+      if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
+      if (inviteTicker)   { clearInterval(inviteTicker); inviteTicker = null; }
+      currentHouseholdId = null;
+      currentHousehold = null;
+      showHHError(null);
+      showSignInError(null);
+      show("signedOut");
+    }
   });
 
   // -- Service worker ---------------------------------------------------

@@ -33,7 +33,7 @@ Project context for Claude Code sessions. Source of truth for *how* we build, no
 ## Sub-task progress
 - [x] 1. Scaffold — `index.html`, `manifest.json`, `sw.js`, dark theme, Firebase init via CDN
 - [x] 2. Auth flow — Google sign-in popup, signed-in card (avatar/name/email), sign-out, persistence, friendly error banner
-- [ ] 3. Household creation + invite (6-digit code, 24h expiry, max 2 members)
+- [x] 3. Household creation + invite — create/join, 6-digit code, 24h expiry, regenerate, copy/share, real-time listener, Firestore rules
 - [ ] 4. Add bill form (3 required + 2 optional)
 - [ ] 5. List view (real-time, sorted by `nextDue`, filters)
 - [ ] 6. Detail view (edit, pause, cancel, reactivate)
