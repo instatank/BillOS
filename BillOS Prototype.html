@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BillOS · Hi-fi prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  /* hide caret-only fields in date inputs across themes */
+  input::-webkit-calendar-picker-indicator { opacity: 0.5; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- starters -->
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<!-- BillOS modules -->
+<script type="text/babel" src="billos-data.jsx"></script>
+<script type="text/babel" src="billos-themes.jsx"></script>
+<script type="text/babel" src="billos-atoms.jsx"></script>
+<script type="text/babel" src="billos-screens.jsx"></script>
+<script type="text/babel" src="billos-list-detail.jsx"></script>
+<script type="text/babel" src="billos-variants.jsx"></script>
+<script type="text/babel" src="billos-app.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+const { useTweaks, TweaksPanel, TweakSection, TweakRadio, DesignCanvas, DCSection, DCArtboard, BILLOS_THEMES, BillOSPrototype } = window;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "density": "compact",
+  "addBillPattern": "sheet"
+}/*EDITMODE-END*/;
+
+function Root() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  return (
+    <>
+      <DesignCanvas
+        title="BillOS — three light directions"
+        subtitle="Each row is one design. The columns walk through the flow — sign in → household → list → add bill → detail. Tap into any artboard to use it as a real prototype."
+      >
+        {[
+          { theme: BILLOS_THEMES.pocketStackLight, label: 'Stack · Light',  tagline: 'Daytime · cream + green · same flow, calm palette' },
+          { theme: BILLOS_THEMES.pocketStack,      label: 'Stack · Dark',   tagline: 'Night · deep olive + lime · the chosen direction' },
+        ].map(({ theme, label, tagline }) => (
+          <DCSection key={theme.id} id={theme.id} title={label} subtitle={tagline}>
+            {[
+              { id: 'signin',     screen: 'signedOut',        showAdd: false, billId: null,         caption: 'Sign in' },
+              { id: 'household',  screen: 'householdChoice',  showAdd: false, billId: null,         caption: 'Household' },
+              { id: 'list',       screen: 'list',             showAdd: false, billId: null,         caption: 'Bills list' },
+              { id: 'add',        screen: 'list',             showAdd: true,  billId: null,         caption: 'Add bill' },
+              { id: 'detail',     screen: 'detail',           showAdd: false, billId: 'b03',        caption: 'Bill detail' },
+            ].map(({ id, screen, showAdd, billId, caption }) => (
+              <DCArtboard key={id} id={`${theme.id}-${id}`} label={caption} width={420} height={900}>
+                <div style={{ paddingTop: 14, display: 'flex', justifyContent: 'center' }}>
+                  <BillOSPrototype
+                    theme={theme}
+                    density={t.density}
+                    addBillPattern={t.addBillPattern}
+                    initialScreen={screen}
+                    initialShowAdd={showAdd}
+                    initialActiveBillId={billId}
+                    hideRestart
+                    deviceWidth={372}
+                    deviceHeight={808}
+                  />
+                </div>
+              </DCArtboard>
+            ))}
+          </DCSection>
+        ))}
+      </DesignCanvas>
+
+      <TweaksPanel>
+        <TweakSection label="List" />
+        <TweakRadio label="Density" value={t.density}
+          options={[
+            { value: 'compact',      label: 'Compact' },
+            { value: 'comfortable',  label: 'Comfy' },
+            { value: 'grouped',      label: 'Grouped' },
+          ]}
+          onChange={(v) => setTweak('density', v)} />
+        <TweakSection label="Add bill" />
+        <TweakRadio label="Presents as" value={t.addBillPattern}
+          options={[
+            { value: 'sheet', label: 'Bottom sheet' },
+            { value: 'modal', label: 'Full modal' },
+          ]}
+          onChange={(v) => setTweak('addBillPattern', v)} />
+      </TweaksPanel>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Root />);
+</script>
+</body>
+</html>
