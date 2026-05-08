@@ -35,6 +35,6 @@ Project context for Claude Code sessions. Source of truth for *how* we build, no
 - [x] 2. Auth flow — Google sign-in popup, signed-in card (avatar/name/email), sign-out, persistence, friendly error banner
 - [x] 3. Household creation + invite — create/join, 6-digit code, 24h expiry, regenerate, copy/share, real-time listener, Firestore rules
 - [x] 4. Add bill form — 3 required (name, amount, frequency) + 2 optional (category, next due), validation, IST date anchoring, Firestore write
-- [ ] 5. List view (real-time, sorted by `nextDue`, filters)
+- [x] 5. List view — real-time, sorted by `nextDue`, status filter chips (active/paused/cancelled), category dot + relative due, compact topbar with avatar + sign-out, condensed household card
 - [ ] 6. Detail view (edit, pause, cancel, reactivate)
 - [ ] 7. PWA polish + Vercel deploy (icons, caching, live URL)
