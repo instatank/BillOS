@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0d10" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="BillOS" />
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<title>BillOS</title>
+<style>
+  :root {
+    --bg:            #0b0d10;
+    --bg-elev-1:     #12151a;
+    --bg-elev-2:     #1a1e25;
+    --border:        #232830;
+    --text:          #e7ebf0;
+    --text-dim:      #9aa3ad;
+    --text-muted:    #5f6772;
+    --accent:        #7aa2ff;
+    --accent-soft:   #2a3a66;
+    --danger:        #ef6b6b;
+    --warn:          #f0b057;
+
+    --cat-utilities:    #5aa9ff;
+    --cat-subscriptions:#b58cff;
+    --cat-credit_cards: #f0b057;
+    --cat-people:       #6fd28a;
+    --cat-other:        #8a93a0;
+
+    --radius: 12px;
+    --radius-sm: 8px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+  body { min-height: 100vh; -webkit-font-smoothing: antialiased; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  a { color: var(--accent); text-decoration: none; }
+
+  .app { max-width: 640px; margin: 0 auto; padding: var(--space-4); }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) 0 var(--space-5); }
+  .brand { font-weight: 600; letter-spacing: -0.01em; font-size: 18px; }
+  .brand .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 8px; vertical-align: middle; }
+
+  .card { background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-5); }
+  .muted { color: var(--text-dim); }
+  .small { font-size: 13px; }
+
+  button, .btn {
+    font: inherit; color: var(--text); background: var(--bg-elev-2);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 14px; cursor: pointer; min-height: 44px;
+  }
+  button:hover { background: #222732; }
+  .btn-primary { background: var(--accent); color: #0b0d10; border-color: var(--accent); font-weight: 600; }
+  .btn-primary:hover { filter: brightness(1.05); }
+
+  .center { display: flex; align-items: center; justify-content: center; min-height: 70vh; flex-direction: column; gap: var(--space-4); text-align: center; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span>BillOS</div>
+    <div id="userArea" class="small muted"></div>
+  </header>
+
+  <main id="view-loading" class="center">
+    <div class="muted small">Loading…</div>
+  </main>
+
+  <main id="view-signed-out" class="center hidden">
+    <div class="card" style="max-width: 360px;">
+      <h1 style="margin: 0 0 var(--space-2); font-size: 20px;">Welcome to BillOS</h1>
+      <p class="muted small" style="margin: 0 0 var(--space-4);">Your household's recurring outflows, in one calm place.</p>
+      <button id="btnSignIn" class="btn-primary" style="width: 100%;">Sign in with Google</button>
+    </div>
+  </main>
+
+  <main id="view-signed-in" class="center hidden">
+    <div class="card">
+      <div class="muted small">Signed in. Sub-task 2 (auth UI states) and beyond ship next.</div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  // -- Firebase init (replace config before deploy) ----------------------
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, GoogleAuthProvider,
+    signInWithPopup, signOut, browserLocalPersistence, setPersistence
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // TODO(AA): replace with your Firebase web config (Project Settings → Your apps → Web)
+  const firebaseConfig = {
+    apiKey:            "REPLACE_ME",
+    authDomain:        "REPLACE_ME.firebaseapp.com",
+    projectId:         "REPLACE_ME",
+    storageBucket:     "REPLACE_ME.appspot.com",
+    messagingSenderId: "REPLACE_ME",
+    appId:             "REPLACE_ME"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+  await setPersistence(auth, browserLocalPersistence);
+
+  // -- View switching ---------------------------------------------------
+  const views = {
+    loading:    document.getElementById("view-loading"),
+    signedOut:  document.getElementById("view-signed-out"),
+    signedIn:   document.getElementById("view-signed-in"),
+  };
+  const userArea = document.getElementById("userArea");
+  function show(name) {
+    Object.values(views).forEach(v => v.classList.add("hidden"));
+    views[name].classList.remove("hidden");
+  }
+
+  // -- Auth wiring (minimal — full sign-in/out UI in sub-task 2) --------
+  document.getElementById("btnSignIn").addEventListener("click", async () => {
+    const provider = new GoogleAuthProvider();
+    try { await signInWithPopup(auth, provider); }
+    catch (err) { console.error("[auth] sign-in failed", err); alert("Sign-in failed: " + err.message); }
+  });
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      userArea.textContent = user.displayName || user.email || "";
+      show("signedIn");
+    } else {
+      userArea.textContent = "";
+      show("signedOut");
+    }
+  });
+
+  // -- Service worker ---------------------------------------------------
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(err => console.warn("[sw] register failed", err));
+    });
+  }
+
+  // expose for console debugging during build
+  window.__billos = { app, auth, db };
+</script>
+</body>
+</html>
