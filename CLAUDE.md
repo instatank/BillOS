@@ -35,6 +35,13 @@ Project context for Claude Code sessions. Source of truth for *how* we build, no
 - [x] 2. Auth flow — Google sign-in popup, signed-in card (avatar/name/email), sign-out, persistence, friendly error banner
 - [x] 3. Household creation + invite — create/join, 6-digit code, 24h expiry, regenerate, copy/share, real-time listener, Firestore rules
 - [x] 4. Add bill form — 3 required (name, amount, frequency) + 2 optional (category, next due), validation, IST date anchoring, Firestore write
-- [ ] 5. List view (real-time, sorted by `nextDue`, filters)
-- [ ] 6. Detail view (edit, pause, cancel, reactivate)
+- [x] 5. List view — Stack feed, filter chips, real-time onSnapshot, light/dark theming via prefers-color-scheme, full-screen Add Bill modal
+- [x] 6. Detail view — hero + KV card + pause/cancel/reactivate actions; tap card opens detail; Edit re-uses Add Bill modal pre-populated
 - [ ] 7. PWA polish + Vercel deploy (icons, caching, live URL)
+
+## Design system (integrated 8 May 2026)
+- Source of truth: `BillOS Prototype.html` and the `billos-*.jsx` reference files at the repo root (untouched).
+- Stack direction: rich card feed home, no tab bar, full-screen modal for add bill, modal for detail.
+- Light is daytime default (cream + deep green); dark flips to deep olive + lime via `prefers-color-scheme`.
+- Fonts: Bricolage Grotesque for display/numbers, Geist for body — loaded from Google Fonts.
+- Field names migrated: `freq` (not `frequency`), `cat` (not `category`). Reads include backward-compat fallback for sub-task 4 bills.

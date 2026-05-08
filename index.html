@@ -3,312 +3,918 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0b0d10" />
+<meta name="theme-color" content="#1a1f12" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f4f6ed" media="(prefers-color-scheme: light)" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="BillOS" />
 <link rel="manifest" href="/manifest.json" />
 <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <title>BillOS</title>
 <style>
+  /* ─── Tokens — Stack · Light (default) ─────────────────────────── */
   :root {
-    --bg:            #0b0d10;
-    --bg-elev-1:     #12151a;
-    --bg-elev-2:     #1a1e25;
-    --border:        #232830;
-    --text:          #e7ebf0;
-    --text-dim:      #9aa3ad;
-    --text-muted:    #5f6772;
-    --accent:        #7aa2ff;
-    --accent-soft:   #2a3a66;
-    --danger:        #ef6b6b;
-    --warn:          #f0b057;
+    color-scheme: light;
+    --bg:          #f4f6ed;
+    --bg-elev-1:   #ffffff;
+    --bg-elev-2:   #fafbf3;
+    --border:      #e3e7d6;
+    --border-soft: #ebeedf;
+    --text:        #1a1f12;
+    --text-dim:    #5e6b50;
+    --text-muted:  #8a957a;
 
-    --cat-utilities:    #5aa9ff;
-    --cat-subscriptions:#b58cff;
-    --cat-credit_cards: #f0b057;
-    --cat-people:       #6fd28a;
-    --cat-other:        #8a93a0;
+    --accent:        #3a6f1e;
+    --accent-ink:    #f4f6ed;
+    --accent-soft:   #d6e8b8;
+    --accent-border: #a4c47a;
 
-    --radius: 12px;
-    --radius-sm: 8px;
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 24px;
-    --space-6: 32px;
+    --danger:  #b03a2c;
+    --warn:    #a17126;
+    --success: #3a6f1e;
 
-    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+    --cat-utilities:     #3a6ea5;
+    --cat-subscriptions: #7c4fb0;
+    --cat-credit_cards:  #a86a1f;
+    --cat-people:        #3a6f1e;
+    --cat-other:         #6f6a55;
+
+    --cat-utilities-tint:     #dfe8f4;
+    --cat-subscriptions-tint: #eadefa;
+    --cat-credit_cards-tint:  #f4e0c5;
+    --cat-people-tint:        #dbe8c5;
+    --cat-other-tint:         #ece8da;
+
+    --radius:      14px;
+    --radius-sm:   10px;
+    --radius-lg:   20px;
+    --radius-card: 18px;
+
+    --font-body:    "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --font-display: "Bricolage Grotesque", "Geist", -apple-system, system-ui, sans-serif;
+    --font-num:     "Bricolage Grotesque", "Geist", -apple-system, system-ui, sans-serif;
+
+    --shadow-modal: 0 -8px 30px rgba(0, 0, 0, 0.18);
+    --overlay:      rgba(26, 31, 18, 0.45);
   }
 
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
-  body { min-height: 100vh; -webkit-font-smoothing: antialiased; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  /* ─── Tokens — Stack · Dark (auto by system pref) ──────────────── */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg:          #1a1f12;
+      --bg-elev-1:   #252b1a;
+      --bg-elev-2:   #2c3322;
+      --border:      #3a432a;
+      --border-soft: #2f3823;
+      --text:        #f4f6ed;
+      --text-dim:    #a4b095;
+      --text-muted:  #7a8770;
+
+      --accent:        #c8ff4e;
+      --accent-ink:    #1a1f12;
+      --accent-soft:   #2a3a1a;
+      --accent-border: #5a7a2a;
+
+      --danger:  #ff7a6e;
+      --warn:    #ffb46e;
+      --success: #9bf0b3;
+
+      --cat-utilities:     #7eb6ff;
+      --cat-subscriptions: #d1a3ff;
+      --cat-credit_cards:  #ffb46e;
+      --cat-people:        #9bf0b3;
+      --cat-other:         #aab2c2;
+
+      --cat-utilities-tint:     rgba(126, 182, 255, 0.18);
+      --cat-subscriptions-tint: rgba(209, 163, 255, 0.18);
+      --cat-credit_cards-tint:  rgba(255, 180, 110, 0.18);
+      --cat-people-tint:        rgba(155, 240, 179, 0.18);
+      --cat-other-tint:         rgba(170, 178, 194, 0.18);
+
+      --shadow-modal: 0 -8px 30px rgba(0, 0, 0, 0.55);
+      --overlay:      rgba(0, 0, 0, 0.55);
+    }
+  }
+
+  /* ─── Reset + base ──────────────────────────────────────────────── */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  body {
+    min-height: 100vh; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  button { font: inherit; color: inherit; background: transparent; border: none; padding: 0; cursor: pointer; }
+  input, select, textarea { font: inherit; color: inherit; }
   a { color: var(--accent); text-decoration: none; }
 
-  .app { max-width: 640px; margin: 0 auto; padding: var(--space-4); }
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) 0 var(--space-5); }
-  .brand { font-weight: 600; letter-spacing: -0.01em; font-size: 18px; }
-  .brand .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 8px; vertical-align: middle; }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; }
 
-  .card { background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-5); }
+  /* ─── Press primitive ──────────────────────────────────────────── */
+  .pressable { cursor: pointer; user-select: none; transition: opacity .12s, transform .12s, background .12s; }
+  .pressable:active { opacity: 0.6; }
+
+  /* ─── App bar ──────────────────────────────────────────────────── */
+  .appbar {
+    position: sticky; top: 0; z-index: 20;
+    background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 75%, transparent 100%);
+    padding-top: 16px;
+  }
+  .appbar-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; min-height: 44px; }
+  .appbar-leading, .appbar-trailing { display: flex; align-items: center; gap: 6px; color: var(--text); }
+  .appbar-large-title {
+    font-family: var(--font-display); font-size: 32px; font-weight: 700;
+    letter-spacing: -0.6px; color: var(--text); line-height: 1.05;
+    padding: 6px 16px 4px;
+  }
+  .appbar-subtitle { font-size: 13px; color: var(--text-dim); padding: 0 16px 14px; }
+
+  /* ─── Helpers ──────────────────────────────────────────────────── */
+  .hidden { display: none !important; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .between { justify-content: space-between; }
   .muted { color: var(--text-dim); }
   .small { font-size: 13px; }
 
-  button, .btn {
-    font: inherit; color: var(--text); background: var(--bg-elev-2);
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 10px 14px; cursor: pointer; min-height: 44px;
-  }
-  button:hover { background: #222732; }
-  .btn-primary { background: var(--accent); color: #0b0d10; border-color: var(--accent); font-weight: 600; }
-  .btn-primary:hover { filter: brightness(1.05); }
-
-  .center { display: flex; align-items: center; justify-content: center; min-height: 70vh; flex-direction: column; gap: var(--space-4); text-align: center; }
-
-  .stack { display: flex; flex-direction: column; gap: var(--space-3); }
-  .row   { display: flex; align-items: center; gap: var(--space-3); }
-
-  .avatar {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: var(--bg-elev-2); border: 1px solid var(--border);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 600; color: var(--text-dim); overflow: hidden;
-  }
-  .avatar img { width: 100%; height: 100%; object-fit: cover; }
-
-  .userline { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
-  .userline .name  { font-weight: 600; }
-  .userline .email { color: var(--text-dim); font-size: 13px; }
-
-  .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
-  .btn-ghost:hover { color: var(--text); background: var(--bg-elev-2); }
-
+  /* ─── Banners ──────────────────────────────────────────────────── */
   .banner {
-    background: rgba(239, 107, 107, 0.08); border: 1px solid rgba(239, 107, 107, 0.35);
-    color: var(--danger); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px;
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    color: var(--danger);
+    padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px;
     text-align: left;
   }
   .banner-info {
-    background: rgba(122, 162, 255, 0.08); border-color: rgba(122, 162, 255, 0.35); color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--accent);
   }
   .banner-warn {
-    background: rgba(240, 176, 87, 0.08); border-color: rgba(240, 176, 87, 0.35); color: var(--warn);
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+    border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+    color: var(--warn);
   }
 
-  .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-  .h-title { margin: 0; font-size: 18px; font-weight: 600; }
-  .h-section-title { margin: 0; font-size: 13px; color: var(--text-dim); font-weight: 500; }
-
-  input[type="text"], input[type="number"], input[type="date"], select, textarea {
-    font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px 12px; width: 100%; min-height: 44px;
+  /* ─── Buttons ──────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 48px; padding: 12px 18px;
+    border-radius: var(--radius); border: 1px solid transparent;
+    font-family: var(--font-body); font-size: 16px; font-weight: 600; letter-spacing: -0.1px;
+    box-sizing: border-box; cursor: pointer;
+    transition: opacity .12s, background .12s;
   }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-  input::placeholder { color: var(--text-muted); }
+  .btn:active { opacity: 0.7; }
+  .btn[disabled] { opacity: 0.4; cursor: default; }
+  .btn-full { width: 100%; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn-ghost   { background: transparent; color: var(--text); border-color: var(--border); }
+  .btn-soft    { background: var(--bg-elev-2); color: var(--text); border-color: var(--border-soft); }
+  .btn-danger  { background: transparent; color: var(--danger); border-color: var(--border); }
+  .btn-plain   { background: transparent; color: var(--accent); border-color: transparent; min-height: 32px; padding: 6px 8px; }
+  .btn-icon-circle {
+    width: 36px; height: 36px; min-height: 36px; padding: 0;
+    border-radius: 18px; border: 1px solid var(--border-soft);
+    background: var(--bg-elev-1); color: var(--text);
+  }
+  .btn-icon-circle.is-accent { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn-link { color: var(--accent); font-size: 15px; padding: 6px 4px; min-height: 32px; }
+
+  /* ─── BillOS mark ──────────────────────────────────────────────── */
+  .mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 9px;
+    background: var(--accent); color: var(--accent-ink);
+    font-family: var(--font-display); font-weight: 800; font-size: 14px;
+    letter-spacing: -0.5px;
+  }
+  .mark-lg { width: 44px; height: 44px; border-radius: 14px; font-size: 22px; }
+
+  /* ─── Cards ────────────────────────────────────────────────────── */
+  .card {
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-card);
+    padding: 16px;
+  }
+  .card-lg { border-radius: var(--radius-lg); padding: 20px; }
+  .card-tap { display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+
+  /* ─── Inputs ──────────────────────────────────────────────────── */
+  .input, .select {
+    width: 100%; box-sizing: border-box;
+    padding: 14px 14px;
+    font-size: 17px; font-family: var(--font-body);
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    color: var(--text);
+    outline: none;
+  }
+  .input::placeholder { color: var(--text-muted); }
+  .input:focus, .select:focus { border-color: var(--accent); }
 
   .field { display: flex; flex-direction: column; gap: 6px; }
-  .field-row { display: flex; gap: var(--space-2); }
-  .field-row > * { flex: 1; }
-
-  .divider { height: 1px; background: var(--border); border: 0; margin: var(--space-2) 0; }
-
-  .invite-code {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 28px; letter-spacing: 0.25em; font-weight: 600; color: var(--text);
-    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 14px 16px; text-align: center;
-  }
-  .code-input {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 20px; letter-spacing: 0.2em; text-align: center;
+  .field-label {
+    font-size: 12px; color: var(--text-dim); font-weight: 600;
+    letter-spacing: 0.2px; font-family: var(--font-body);
   }
 
+  /* ─── SignedOut hero ──────────────────────────────────────────── */
+  .hero {
+    height: 100%; min-height: 100vh; position: relative;
+    display: flex; flex-direction: column;
+    padding-top: 62px;
+    background: var(--bg);
+  }
+  .hero-content {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center; align-items: flex-start;
+    padding: 0 28px;
+  }
+  .hero-title {
+    margin-top: 24px;
+    font-family: var(--font-display);
+    font-size: 38px; font-weight: 700; line-height: 1.05; letter-spacing: -0.8px;
+    color: var(--text);
+  }
+  .hero-tagline {
+    margin-top: 10px;
+    font-size: 17px; line-height: 1.4; color: var(--text-dim);
+    max-width: 280px;
+  }
+  .hero-preview {
+    margin-top: 36px; display: flex; flex-direction: column; gap: 10px; align-self: stretch;
+  }
+  .hero-preview-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-card);
+  }
+  .hero-preview-row.r1 { opacity: 1; }
+  .hero-preview-row.r2 { opacity: 0.82; }
+  .hero-preview-row.r3 { opacity: 0.64; }
+  .hero-preview-name { flex: 1; font-size: 14.5px; color: var(--text); font-weight: 500; }
+  .hero-preview-name .due { display: block; font-size: 12px; color: var(--text-dim); font-weight: 400; margin-top: 1px; }
+  .hero-cta {
+    padding: 16px 16px 50px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .hero-cta-fineprint {
+    text-align: center; font-size: 12px; color: var(--text-muted);
+  }
+
+  /* ─── Onboarding choice cards ─────────────────────────────────── */
+  .choice-card {
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border-soft);
+    display: flex; flex-direction: column; gap: 6px;
+    cursor: pointer;
+  }
+  .choice-title {
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--text);
+  }
+  .choice-body { font-size: 14px; color: var(--text-dim); line-height: 1.4; }
+  .footer-fineprint {
+    margin-top: auto; padding: 12px 4px 24px;
+    font-size: 12px; color: var(--text-muted); line-height: 1.5;
+  }
+
+  /* ─── Invite-code visuals ─────────────────────────────────────── */
+  .code-row { display: flex; gap: 8px; justify-content: center; }
+  .code-cell {
+    width: 38px; height: 52px; border-radius: 12px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 28px; font-weight: 700;
+    color: var(--text); letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .code-cell.active { border: 1.5px solid var(--accent); }
+  .code-cell.error  { border: 1.5px solid var(--danger); }
+
+  .keypad {
+    margin-top: auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    width: 100%; max-width: 320px;
+  }
+  .keypad-key {
+    height: 56px; border-radius: var(--radius);
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--text);
+    cursor: pointer;
+  }
+  .keypad-key.empty { background: transparent; border: none; cursor: default; }
+  .keypad-key:active { opacity: 0.7; }
+
+  /* ─── Stack home: header ──────────────────────────────────────── */
+  .stack-header {
+    padding: 16px 16px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .stack-title-block { min-width: 0; }
+  .stack-title {
+    font-family: var(--font-display); font-size: 26px; font-weight: 700;
+    color: var(--text); letter-spacing: -0.5px; line-height: 1;
+  }
+  .stack-substat { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .stack-header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* ─── Filter chip strip ───────────────────────────────────────── */
+  .chip-strip {
+    padding: 12px 0; overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .chip-strip::-webkit-scrollbar { display: none; }
+  .chip-strip-inner {
+    display: inline-flex; gap: 8px; padding: 0 16px; white-space: nowrap;
+  }
+  .chip {
+    padding: 7px 14px; border-radius: 999px;
+    background: var(--bg-elev-1); color: var(--text);
+    border: 1px solid var(--border-soft);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  }
+
+  /* ─── Bill cards (Stack feed) ─────────────────────────────────── */
+  .feed { padding: 4px 12px 30px; display: flex; flex-direction: column; gap: 10px; }
+  .bill-card {
+    padding: 14px 16px;
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-card);
+    display: flex; flex-direction: column; gap: 10px;
+    cursor: pointer;
+  }
+  .bill-card.is-paused { opacity: 0.7; }
+  .bill-card.is-cancelled .bill-name { text-decoration: line-through; color: var(--text-dim); }
+  .bill-row-top { display: flex; align-items: center; gap: 8px; }
+  .bill-cat-meta {
+    flex: 1; font-size: 11px; color: var(--text-dim);
+    font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .due-pill {
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--bg-elev-2); color: var(--text-dim);
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .due-pill.is-soon { background: var(--accent); color: var(--accent-ink); }
+  .due-pill.is-overdue { background: var(--danger); color: var(--bg-elev-1); }
+
+  .bill-row-main { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .bill-name { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--text); letter-spacing: -0.2px; min-width: 0; word-break: break-word; }
+  .amount {
+    font-family: var(--font-num); font-weight: 600;
+    font-variant-numeric: tabular-nums; color: var(--text);
+    white-space: nowrap;
+  }
+  .amount .sym { opacity: 0.6; margin-right: 1px; }
+
+  .bill-row-foot {
+    display: flex; align-items: center; gap: 12px;
+    padding-top: 6px; border-top: 1px dashed var(--border-soft);
+    margin-top: 2px;
+  }
+  .owner-mini {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .owner-initial {
+    width: 18px; height: 18px; border-radius: 9px;
+    background: var(--bg-elev-2); border: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: var(--text-dim); font-weight: 700;
+  }
+  .owner-name { font-size: 12px; color: var(--text-dim); }
+  .next-meta { font-size: 12px; color: var(--text-muted); }
+
+  /* ─── Category badge ──────────────────────────────────────────── */
+  .cat-chip {
+    width: 34px; height: 34px; border-radius: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .cat-chip.sm { width: 28px; height: 28px; border-radius: 12px; }
+  .cat-chip.lg { width: 42px; height: 42px; border-radius: 16px; }
+
+  .cat-utilities      { background: var(--cat-utilities-tint);     color: var(--cat-utilities); }
+  .cat-subscriptions  { background: var(--cat-subscriptions-tint); color: var(--cat-subscriptions); }
+  .cat-credit_cards   { background: var(--cat-credit_cards-tint);  color: var(--cat-credit_cards); }
+  .cat-people         { background: var(--cat-people-tint);        color: var(--cat-people); }
+  .cat-other          { background: var(--cat-other-tint);         color: var(--cat-other); }
+
+  .cat-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cat-dot.cat-utilities      { background: var(--cat-utilities); }
+  .cat-dot.cat-subscriptions  { background: var(--cat-subscriptions); }
+  .cat-dot.cat-credit_cards   { background: var(--cat-credit_cards); }
+  .cat-dot.cat-people         { background: var(--cat-people); }
+  .cat-dot.cat-other          { background: var(--cat-other); }
+
+  /* ─── Empty / loading states ─────────────────────────────────── */
+  .empty {
+    padding: 60px 24px; text-align: center;
+    color: var(--text-dim); font-size: 14px; line-height: 1.5;
+  }
+  .empty .empty-cta { margin-top: 16px; }
+
+  /* ─── Modal (Add bill / Detail) ──────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 80;
+    background: var(--overlay);
+    opacity: 0;
+    transition: opacity .22s ease;
+  }
+  .modal-overlay.open { opacity: 1; }
+
+  .modal {
+    position: fixed; inset: 0; z-index: 90;
+    background: var(--bg);
+    transform: translateY(40px);
+    opacity: 0;
+    transition: transform .26s cubic-bezier(.2,.8,.2,1), opacity .2s;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .modal.open { transform: translateY(0); opacity: 1; }
+  .modal-inner { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border-soft);
+    position: sticky; top: 0; background: var(--bg); z-index: 5;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; color: var(--text); }
+  .modal-body { flex: 1; padding: 16px 16px 24px; }
+
+  /* segmented chip grid for frequency / owner */
+  .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .seg-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+  .seg-key {
+    padding: 11px 8px; border-radius: var(--radius-sm);
+    background: var(--bg-elev-2); color: var(--text);
+    border: 1px solid var(--border-soft);
+    text-align: center; font-size: 13.5px; font-weight: 500;
+    cursor: pointer;
+  }
+  .seg-key.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  /* category list (vertical) */
+  .cat-list { display: flex; flex-direction: column; gap: 6px; }
+  .cat-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border-soft);
+    cursor: pointer;
+  }
+  .cat-row.active { background: var(--accent-soft); border-color: var(--accent-border); }
+  .cat-row .cat-label { flex: 1; font-size: 14.5px; color: var(--text); font-weight: 500; }
+
+  /* amount input with ₹ prefix and live preview */
+  .amount-wrap { position: relative; }
+  .amount-wrap .amount-prefix {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text-dim); font-size: 17px;
+  }
+  .amount-wrap .amount-input {
+    padding-left: 30px; font-family: var(--font-num); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .amount-wrap .amount-preview {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text-dim); font-size: 13px;
+  }
+
+  /* ─── Detail screen ──────────────────────────────────────────── */
+  .detail-hero {
+    padding: 6px 22px 22px;
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px;
+  }
+  .detail-name {
+    font-family: var(--font-display); font-size: 22px; font-weight: 600;
+    color: var(--text); letter-spacing: -0.4px;
+    word-break: break-word;
+  }
+  .detail-name.is-cancelled { text-decoration: line-through; color: var(--text-dim); }
+  .detail-amount-meta { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+  .status-pill {
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .status-paused {
+    background: color-mix(in srgb, var(--warn) 15%, transparent);
+    color: var(--warn);
+  }
+  .status-cancelled {
+    background: color-mix(in srgb, var(--danger) 15%, transparent);
+    color: var(--danger);
+  }
+
+  .kv-card {
+    background: var(--bg-elev-1); border: 1px solid var(--border-soft);
+    border-radius: var(--radius-card); overflow: hidden;
+    margin: 0 12px;
+  }
+  .kv-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-label { flex: 1; font-size: 14px; color: var(--text-dim); }
+  .kv-value { font-size: 15px; color: var(--text); font-weight: 500; text-align: right; }
+
+  .detail-actions { padding: 20px 12px 36px; display: flex; flex-direction: column; gap: 8px; }
+  .detail-fineprint { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; padding: 0 24px; }
+
+  /* ─── Member pills (household card) ──────────────────────────── */
   .pill {
     display: inline-flex; align-items: center; gap: 6px;
-    background: var(--bg-elev-2); border: 1px solid var(--border);
+    background: var(--bg-elev-2); border: 1px solid var(--border-soft);
     border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--text-dim);
   }
-  .pill.you { color: var(--accent); border-color: rgba(122, 162, 255, 0.35); background: rgba(122, 162, 255, 0.08); }
+  .pill.you {
+    color: var(--accent); border-color: var(--accent-border);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
 
-  .hidden { display: none !important; }
+  /* ─── Sign-out menu (popover from ≡ icon) ────────────────────── */
+  .menu-pop {
+    position: absolute; right: 12px; top: 56px; z-index: 30;
+    background: var(--bg-elev-1); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 6px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.18);
+    min-width: 220px;
+    display: none;
+  }
+  .menu-pop.open { display: block; }
+  .menu-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    color: var(--text); font-size: 14px; cursor: pointer;
+  }
+  .menu-item:hover, .menu-item:active { background: var(--bg-elev-2); }
+  .menu-item.danger { color: var(--danger); }
+  .menu-divider { height: 1px; background: var(--border-soft); margin: 4px 6px; }
+  .menu-section { padding: 6px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* tabular nums everywhere amounts/dates appear */
+  .num { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
 <div class="app">
-  <header class="topbar">
-    <div class="brand"><span class="dot"></span>BillOS</div>
-  </header>
 
-  <main id="view-loading" class="center">
-    <div class="muted small">Loading…</div>
+  <!-- ─── Loading view ─────────────────────────────────────────── -->
+  <main id="view-loading" class="hero">
+    <div style="margin: auto; color: var(--text-dim); font-size: 14px;">Loading…</div>
   </main>
 
-  <main id="view-signed-out" class="center hidden">
-    <div class="card stack" style="max-width: 360px; width: 100%;">
-      <h1 style="margin: 0; font-size: 20px;">Welcome to BillOS</h1>
-      <p class="muted small" style="margin: 0;">Your household's recurring outflows, in one calm place.</p>
-      <div id="signInError" class="banner hidden"></div>
-      <button id="btnSignIn" class="btn-primary" style="width: 100%;">Sign in with Google</button>
-    </div>
-  </main>
+  <!-- ─── Signed-out (hero) ───────────────────────────────────── -->
+  <main id="view-signed-out" class="hidden">
+    <div class="hero">
+      <div class="hero-content">
+        <div class="mark mark-lg">₹</div>
+        <div class="hero-title">BillOS</div>
+        <div class="hero-tagline">Your household's recurring outflows, in one calm place.</div>
 
-  <main id="view-signed-in" class="hidden" style="padding-top: var(--space-3);">
-    <section class="card stack">
-      <div class="row" style="justify-content: space-between;">
-        <div class="row">
-          <div id="userAvatar" class="avatar"></div>
-          <div class="userline">
-            <span id="userName"  class="name">—</span>
-            <span id="userEmail" class="email">—</span>
+        <div class="hero-preview">
+          <div class="hero-preview-row r1">
+            <span class="cat-chip cat-utilities" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>
+            </span>
+            <div class="hero-preview-name">BSES Rajdhani<span class="due">in 4 days</span></div>
+            <span class="amount" style="font-size: 15px; font-weight: 600;"><span class="sym">₹</span>4,280</span>
+          </div>
+          <div class="hero-preview-row r2">
+            <span class="cat-chip cat-people" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-3.7 4.2-5.5 7-5.5s5.5 1.8 7 5.5"/></svg>
+            </span>
+            <div class="hero-preview-name">Sushila ji<span class="due">in 23 days</span></div>
+            <span class="amount" style="font-size: 15px; font-weight: 600;"><span class="sym">₹</span>12,000</span>
+          </div>
+          <div class="hero-preview-row r3">
+            <span class="cat-chip cat-subscriptions" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            </span>
+            <div class="hero-preview-name">Netflix<span class="due">Tomorrow</span></div>
+            <span class="amount" style="font-size: 15px; font-weight: 600;"><span class="sym">₹</span>649</span>
           </div>
         </div>
-        <button id="btnSignOut" class="btn-ghost small">Sign out</button>
       </div>
-    </section>
 
-    <!-- Household area: one of three sub-views below shows at any time. -->
-    <div id="household-area" style="margin-top: var(--space-4);">
-
-      <section id="hh-loading" class="card stack">
-        <div class="muted small">Loading your household…</div>
-      </section>
-
-      <section id="hh-none" class="card stack hidden">
-        <h2 class="h-title">Set up your household</h2>
-        <p class="muted small" style="margin: 0;">A household is shared between you and one other person. You'll see the same bills and updates in real time.</p>
-
-        <div id="hhError" class="banner hidden"></div>
-
-        <div class="stack" style="margin-top: var(--space-2);">
-          <div class="label">Create a new household</div>
-          <div class="field">
-            <input id="hhCreateName" type="text" placeholder="Household name (e.g., Safdarjung)" maxlength="40" />
-          </div>
-          <button id="btnCreateHousehold" class="btn-primary">Create household</button>
-        </div>
-
-        <hr class="divider" />
-
-        <div class="stack">
-          <div class="label">Or join with a 6-digit code</div>
-          <div class="field">
-            <input id="hhJoinCode" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
-          </div>
-          <button id="btnJoinHousehold">Join household</button>
-        </div>
-      </section>
-
-      <section id="hh-has" class="stack hidden">
-        <div class="card stack">
-          <div class="row" style="justify-content: space-between;">
-            <div>
-              <div class="label">Household</div>
-              <h2 id="hhName" class="h-title" style="margin-top: 4px;">—</h2>
-            </div>
-            <button id="btnLeaveHidden" class="btn-ghost small hidden">Leave</button>
-          </div>
-
-          <div class="stack" style="gap: 6px;">
-            <div class="h-section-title">Members</div>
-            <div id="hhMembers" class="row" style="flex-wrap: wrap; gap: 6px;"></div>
-          </div>
-        </div>
-
-        <section id="hh-invite" class="card stack hidden">
-          <div class="row" style="justify-content: space-between;">
-            <h3 class="h-section-title" style="margin: 0;">Invite the second member</h3>
-            <button id="btnRegenerate" class="btn-ghost small">Regenerate</button>
-          </div>
-          <div id="hhInviteCode" class="invite-code">— — — — — —</div>
-          <div id="hhInviteMeta" class="muted small" style="text-align: center;">Expires in —</div>
-          <div id="hhInviteExpired" class="banner banner-warn hidden">This invite code has expired. Tap Regenerate to make a new one.</div>
-          <div class="row" style="gap: var(--space-2);">
-            <button id="btnCopyCode" style="flex: 1;">Copy code</button>
-            <button id="btnShareCode" style="flex: 1;">Share</button>
-          </div>
-          <div class="muted small" style="text-align: center;">Share this with the second person. The code stops working once they join, or after 24 hours.</div>
-        </section>
-
-        <section id="hh-bills" class="stack">
-
-          <div class="card stack">
-            <div class="row" style="justify-content: space-between;">
-              <h3 class="h-section-title" style="margin: 0;">Bills</h3>
-              <button id="btnToggleAddBill" class="btn-primary small">+ Add bill</button>
-            </div>
-
-            <form id="addBillForm" class="stack hidden" autocomplete="off">
-              <div id="addBillError" class="banner hidden"></div>
-
-              <div class="field">
-                <label class="label" for="billName">Name</label>
-                <input id="billName" type="text" maxlength="60" placeholder="e.g., Netflix, MTNL Broadband, Cook salary" required />
-              </div>
-
-              <div class="field-row">
-                <div class="field">
-                  <label class="label" for="billAmount">Amount (₹)</label>
-                  <input id="billAmount" type="number" inputmode="decimal" min="0" step="1" placeholder="0" required />
-                </div>
-                <div class="field">
-                  <label class="label" for="billFrequency">Frequency</label>
-                  <select id="billFrequency" required>
-                    <option value="monthly">Monthly</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="yearly">Yearly</option>
-                    <option value="one_time">One-time</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="field-row">
-                <div class="field">
-                  <label class="label" for="billCategory">Category</label>
-                  <select id="billCategory">
-                    <option value="utilities">Utilities</option>
-                    <option value="subscriptions">Subscriptions</option>
-                    <option value="credit_cards">Credit cards</option>
-                    <option value="people">People</option>
-                    <option value="other" selected>Other</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label class="label" for="billNextDue">Next due (optional)</label>
-                  <input id="billNextDue" type="date" />
-                </div>
-              </div>
-
-              <div class="row" style="gap: var(--space-2); margin-top: var(--space-2);">
-                <button type="button" id="btnCancelAddBill" class="btn-ghost" style="flex: 1;">Cancel</button>
-                <button type="submit" id="btnSaveBill" class="btn-primary" style="flex: 2;">Save bill</button>
-              </div>
-            </form>
-
-            <div id="addBillSaved" class="banner banner-info hidden">Bill saved. The full list view ships in sub-task 5.</div>
-
-            <div id="addBillEmpty" class="muted small" style="text-align: center;">No bills yet. Tap + Add bill to add your first one.</div>
-          </div>
-
-        </section>
-      </section>
-
+      <div class="hero-cta">
+        <div id="signInError" class="banner hidden"></div>
+        <button id="btnSignIn" class="btn btn-primary btn-full">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09a6.6 6.6 0 0 1 0-4.18V7.07H2.18a11 11 0 0 0 0 9.86l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+          Sign in with Google
+        </button>
+        <div class="hero-cta-fineprint">Real-time household sync · No ads · No bank access</div>
+      </div>
     </div>
+  </main>
+
+  <!-- ─── Household choice ────────────────────────────────────── -->
+  <main id="view-household-choice" class="hidden">
+    <div class="hero" style="padding-top: 50px;">
+      <div class="appbar" style="padding-top: 0;">
+        <div class="appbar-row">
+          <div class="appbar-leading">
+            <button id="btnSignOutChoice" class="btn-link">Sign out</button>
+          </div>
+        </div>
+        <div class="appbar-large-title">Set up household</div>
+        <div class="appbar-subtitle">Create a new household, or join one with an invite code.</div>
+      </div>
+
+      <div style="flex: 1; padding: 8px 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div id="hhChoiceError" class="banner hidden"></div>
+
+        <div id="cardCreate" class="choice-card pressable">
+          <div class="choice-title">
+            <span>Create household</span>
+            <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style="color: var(--text-dim);"><path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="choice-body">Get a 6-digit invite code. Share it with one other person — your mom, partner, roommate.</div>
+        </div>
+
+        <div id="cardJoin" class="choice-card pressable">
+          <div class="choice-title">
+            <span>Join household</span>
+            <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style="color: var(--text-dim);"><path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="choice-body">Got a code from someone? Enter it to join their household.</div>
+        </div>
+
+        <div class="footer-fineprint">Households are limited to 2 members in V1. Both members see the same bills in real time.</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Household creating (in-flight) ──────────────────────── -->
+  <main id="view-household-creating" class="hidden">
+    <div class="hero">
+      <div style="margin: auto; text-align: center;">
+        <div class="muted small">Creating your household…</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Household created (show invite code) ────────────────── -->
+  <main id="view-household-created" class="hidden">
+    <div class="hero">
+      <div class="appbar">
+        <div class="appbar-row">
+          <button id="btnHhCreatedBack" class="btn-link" style="display: flex; align-items: center; gap: 4px;">
+            <svg width="11" height="18" viewBox="0 0 11 18" fill="none"><path d="M9.5 1L1.5 9l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Sign out</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="flex: 1; padding: 0 24px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: center;">
+        <div style="font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px;">Share this code</div>
+        <div id="hhCreatedSubtitle" style="margin-top: 6px; font-size: 14px; color: var(--text-dim); max-width: 280px; line-height: 1.45;">One other person can join your household with this code.</div>
+
+        <div class="card-lg" style="margin-top: 28px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; background: var(--bg-elev-1); border: 1px solid var(--border-soft); padding: 24px 18px; border-radius: var(--radius-lg);">
+          <div id="hhCreatedCode" class="code-row"></div>
+          <div id="hhCreatedExpiry" class="muted small">Expires in —</div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="btnCopyCreated" class="btn-link" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <span id="lblCopyCreated">Copy code</span>
+            </button>
+            <span style="width: 1px; height: 14px; background: var(--border-soft);"></span>
+            <button id="btnShareCreated" class="btn-link" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v13M8 7l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Share</span>
+            </button>
+          </div>
+          <div id="hhCreatedExpired" class="banner banner-warn hidden">This invite code has expired. Generate a new one to keep inviting.</div>
+          <button id="btnRegenerateCreated" class="btn-link" style="font-weight: 600;">Regenerate code</button>
+        </div>
+      </div>
+
+      <div style="padding: 16px 16px 50px;">
+        <button id="btnContinueCreated" class="btn btn-primary btn-full">Continue to bills</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Join (enter code) ───────────────────────────────────── -->
+  <main id="view-join" class="hidden">
+    <div class="hero">
+      <div class="appbar">
+        <div class="appbar-row">
+          <button id="btnJoinBack" class="btn-link" style="display: flex; align-items: center; gap: 4px;">
+            <svg width="11" height="18" viewBox="0 0 11 18" fill="none"><path d="M9.5 1L1.5 9l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Back</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="flex: 1; padding: 4px 24px 0; display: flex; flex-direction: column; align-items: center; text-align: center;">
+        <div style="font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px;">Enter invite code</div>
+        <div style="margin-top: 6px; font-size: 14px; color: var(--text-dim); max-width: 280px; line-height: 1.45;">Six digits, from whoever set up the household.</div>
+
+        <div id="joinCodeRow" class="code-row" style="margin-top: 36px;"></div>
+
+        <div id="joinStatus" style="margin-top: 14px; height: 18px; font-size: 13px;"></div>
+
+        <div id="keypad" class="keypad" style="margin-bottom: 24px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ─── Stack home ──────────────────────────────────────────── -->
+  <main id="view-stack" class="hidden">
+    <div class="stack-header">
+      <div class="stack-title-block">
+        <div class="stack-title">Stack</div>
+        <div id="stackSubstat" class="stack-substat">— bills · ₹0 this cycle</div>
+      </div>
+      <div class="stack-header-actions">
+        <button id="btnMenu" class="btn-icon-circle" aria-label="Menu">≡</button>
+        <button id="btnAddBill" class="btn-icon-circle is-accent" aria-label="Add bill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="menuPop" class="menu-pop">
+      <div id="menuHouseholdName" class="menu-section">—</div>
+      <div id="menuMembers" style="padding: 0 12px 6px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
+      <div class="menu-divider"></div>
+      <div id="menuSignOut" class="menu-item danger">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Sign out</span>
+      </div>
+    </div>
+
+    <div class="chip-strip">
+      <div id="chipStripInner" class="chip-strip-inner"></div>
+    </div>
+
+    <div id="feed" class="feed"></div>
   </main>
 </div>
 
+<!-- ─── Add bill modal ───────────────────────────────────────── -->
+<div id="modalOverlay" class="modal-overlay" hidden></div>
+<div id="modalAddBill" class="modal" hidden role="dialog" aria-modal="true" aria-label="New bill">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <button id="abCancel" class="btn-link">Cancel</button>
+      <div id="abTitle" class="modal-title">New bill</div>
+      <button id="abSave" class="btn-link" style="font-weight: 600;" disabled>Save</button>
+    </div>
+
+    <div class="modal-body">
+      <div id="abError" class="banner hidden" style="margin-bottom: 12px;"></div>
+
+      <div class="field">
+        <label class="field-label" for="abName">Name <span style="color: var(--danger);">*</span></label>
+        <input id="abName" class="input" type="text" maxlength="60" placeholder="e.g. BSES Rajdhani" autocomplete="off" />
+      </div>
+
+      <div style="height: 16px;"></div>
+
+      <div class="field">
+        <label class="field-label" for="abAmount">Amount <span style="color: var(--danger);">*</span></label>
+        <div class="amount-wrap">
+          <span class="amount-prefix">₹</span>
+          <input id="abAmount" class="input amount-input" type="text" inputmode="numeric" placeholder="0" />
+          <span id="abAmountPreview" class="amount-preview"></span>
+        </div>
+      </div>
+
+      <div style="height: 16px;"></div>
+
+      <div class="field">
+        <span class="field-label">Frequency <span style="color: var(--danger);">*</span></span>
+        <div id="abFreq" class="seg-grid"></div>
+      </div>
+
+      <div style="height: 16px;"></div>
+
+      <div class="field">
+        <span class="field-label">Category</span>
+        <div id="abCat" class="cat-list"></div>
+      </div>
+
+      <div style="height: 16px;"></div>
+
+      <div class="field">
+        <span class="field-label">Who pays</span>
+        <div id="abOwner" class="seg-grid"></div>
+      </div>
+
+      <div style="height: 16px;"></div>
+
+      <div class="field">
+        <label class="field-label" for="abNextDue">Next due</label>
+        <input id="abNextDue" class="input" type="date" />
+      </div>
+
+      <div style="height: 16px;"></div>
+
+      <div class="field">
+        <label class="field-label" for="abNotes">Notes (optional)</label>
+        <textarea id="abNotes" class="input" rows="3" maxlength="300" placeholder="Anything you want to remember about this bill" style="resize: vertical;"></textarea>
+      </div>
+
+      <div style="height: 22px;"></div>
+
+      <button id="abSubmit" class="btn btn-primary btn-full" disabled>Add 3 required fields</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Detail modal ─────────────────────────────────────────── -->
+<div id="modalDetailOverlay" class="modal-overlay" hidden></div>
+<div id="modalDetail" class="modal" hidden role="dialog" aria-modal="true" aria-label="Bill detail">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <button id="dtBack" class="btn-link" style="display: flex; align-items: center; gap: 4px;">
+        <svg width="11" height="18" viewBox="0 0 11 18" fill="none"><path d="M9.5 1L1.5 9l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Bills</span>
+      </button>
+      <div class="modal-title"></div>
+      <button id="dtEdit" class="btn-link" style="font-weight: 600;">Edit</button>
+    </div>
+
+    <div class="modal-body" style="padding: 12px 0 0;">
+      <div class="detail-hero">
+        <span id="dtCatChip" class="cat-chip lg"></span>
+        <div id="dtName" class="detail-name">—</div>
+        <div>
+          <span id="dtAmount" class="amount" style="font-size: 48px; font-weight: 700; letter-spacing: -0.8px;"></span>
+          <div id="dtMeta" class="detail-amount-meta">—</div>
+        </div>
+        <div id="dtStatusPill" class="status-pill hidden"></div>
+      </div>
+
+      <div class="kv-card">
+        <div class="kv-row"><div class="kv-label">Category</div><div id="dtCategory" class="kv-value"></div></div>
+        <div class="kv-row"><div class="kv-label">Frequency</div><div id="dtFrequency" class="kv-value"></div></div>
+        <div class="kv-row"><div class="kv-label">Next due</div><div id="dtNextDue" class="kv-value"></div></div>
+        <div class="kv-row"><div class="kv-label">Who pays</div><div id="dtOwner" class="kv-value"></div></div>
+        <div id="dtNotesRow" class="kv-row" style="flex-direction: column; align-items: stretch; text-align: left; gap: 4px;">
+          <div class="kv-label">Notes</div>
+          <div id="dtNotes" style="font-size: 14px; color: var(--text); line-height: 1.45;"></div>
+        </div>
+        <div class="kv-row" style="flex-direction: column; align-items: stretch; text-align: left; gap: 4px;">
+          <div class="kv-label">Added</div>
+          <div id="dtAdded" style="font-size: 14px; color: var(--text);"></div>
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button id="dtPause" class="btn btn-soft btn-full">Pause bill</button>
+        <button id="dtCancel" class="btn btn-danger btn-full">Cancel bill</button>
+        <div class="detail-fineprint">Cancelling keeps the bill in your history. You can reactivate it later.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
-  // -- Firebase init (replace config before deploy) ----------------------
+  // ───────────────────────────────────────────────────────────────────
+  // Firebase init
+  // ───────────────────────────────────────────────────────────────────
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getAuth, onAuthStateChanged, GoogleAuthProvider,
     signInWithPopup, signOut, browserLocalPersistence, setPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    getFirestore, collection, doc, getDoc, setDoc, deleteDoc,
-    query, where, onSnapshot, runTransaction, serverTimestamp, Timestamp, writeBatch
+    getFirestore, collection, doc, getDoc, setDoc, deleteDoc, updateDoc,
+    query, where, orderBy, onSnapshot, runTransaction, serverTimestamp,
+    Timestamp, writeBatch
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -325,24 +931,135 @@
   const db   = getFirestore(app);
   await setPersistence(auth, browserLocalPersistence);
 
-  // -- View switching ---------------------------------------------------
-  const views = {
-    loading:    document.getElementById("view-loading"),
-    signedOut:  document.getElementById("view-signed-out"),
-    signedIn:   document.getElementById("view-signed-in"),
+  // ───────────────────────────────────────────────────────────────────
+  // Helpers (ported from billos-data.jsx)
+  // ───────────────────────────────────────────────────────────────────
+  const CATEGORIES = {
+    utilities:     { id: 'utilities',     label: 'Utilities' },
+    subscriptions: { id: 'subscriptions', label: 'Subscriptions' },
+    credit_cards:  { id: 'credit_cards',  label: 'Credit cards' },
+    people:        { id: 'people',        label: 'Household staff' },
+    other:         { id: 'other',         label: 'Other' },
   };
-  function show(name) {
-    Object.values(views).forEach(v => v.classList.add("hidden"));
-    views[name].classList.remove("hidden");
+  const CAT_ORDER = ['utilities', 'subscriptions', 'credit_cards', 'people', 'other'];
+  const FREQS = [
+    { id: 'monthly',   label: 'Monthly' },
+    { id: 'yearly',    label: 'Yearly' },
+    { id: 'quarterly', label: 'Quarterly' },
+    { id: 'weekly',    label: 'Weekly' },
+    { id: 'one_time',  label: 'One-time' },
+  ];
+  const FREQ_LABEL = {
+    weekly: 'every week', monthly: 'every month',
+    quarterly: 'every 3 months', yearly: 'every year', one_time: 'one time',
+  };
+
+  function indianGroup(n) {
+    const num = Math.round(Math.abs(Number(n) || 0));
+    const s = num.toString();
+    if (s.length <= 3) return (n < 0 ? '-' : '') + s;
+    const last3 = s.slice(-3);
+    const rest = s.slice(0, -3);
+    const restGrouped = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+    return (n < 0 ? '-' : '') + restGrouped + ',' + last3;
+  }
+  function fmtINR(n) { return '₹' + indianGroup(n); }
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function dateFromBill(value) {
+    // Bills store nextDue as a Firestore Timestamp; legacy bills may also use ISO string.
+    if (!value) return null;
+    if (typeof value === 'string') return new Date(value + 'T00:00:00+05:30');
+    if (value && typeof value.toDate === 'function') return value.toDate();
+    if (value instanceof Date) return value;
+    return null;
+  }
+  function fmtDate(d) {
+    if (!d) return '—';
+    return `${String(d.getDate()).padStart(2,'0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  function daysFromToday(d) {
+    if (!d) return Number.POSITIVE_INFINITY;
+    return Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
+  }
+  function dueLabel(d) {
+    const n = daysFromToday(d);
+    if (!isFinite(n)) return 'no date';
+    if (n < -1) return `${-n}d late`;
+    if (n === -1) return 'yesterday';
+    if (n === 0) return 'today';
+    if (n === 1) return 'tomorrow';
+    if (n <= 14) return `in ${n}d`;
+    return fmtDate(d).slice(0, 6);
+  }
+  function ymdLocalIST(d) {
+    if (!d) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function timestampFromYMD(ymd) {
+    if (!ymd) return null;
+    const [y, m, d] = ymd.split('-').map(Number);
+    // Anchor at 09:00 IST so day stays stable across timezones.
+    const ms = Date.UTC(y, m - 1, d, 3, 30);
+    return Timestamp.fromMillis(ms);
   }
 
-  // -- Auth: error surfacing -------------------------------------------
-  const signInBtn    = document.getElementById("btnSignIn");
-  const signInError  = document.getElementById("signInError");
+  function categoryIcon(cat) {
+    // SVG strings — return innerHTML for the icon. 18px viewbox, currentColor.
+    const map = {
+      utilities: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>`,
+      subscriptions: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>`,
+      credit_cards: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19"/><path d="M6 15.5h4"/></svg>`,
+      people: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-3.7 4.2-5.5 7-5.5s5.5 1.8 7 5.5"/></svg>`,
+      other: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="18" cy="6" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/><circle cx="6" cy="18" r="1.5"/><circle cx="12" cy="18" r="1.5"/><circle cx="18" cy="18" r="1.5"/></svg>`,
+    };
+    return map[cat] || map.other;
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // View routing
+  // ───────────────────────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const views = {
+    loading:           $('view-loading'),
+    signedOut:         $('view-signed-out'),
+    householdChoice:   $('view-household-choice'),
+    householdCreating: $('view-household-creating'),
+    householdCreated:  $('view-household-created'),
+    join:              $('view-join'),
+    stack:             $('view-stack'),
+  };
+  function show(name) {
+    Object.values(views).forEach(v => v.classList.add('hidden'));
+    views[name].classList.remove('hidden');
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // App state
+  // ───────────────────────────────────────────────────────────────────
+  let currentUser = null;
+  let currentHouseholdId = null;
+  let currentHousehold = null;
+  let bills = [];
+  let unsubHousehold = null;
+  let unsubBills = null;
+  let inviteTicker = null;
+  let onboardingMode = null; // 'choice' | 'created' | 'join' — overrides default routing post-create
+  let activeFilter = 'all';
+  let editingBillId = null;
+  let activeDetailBillId = null;
+
+  // ───────────────────────────────────────────────────────────────────
+  // Sign-in errors
+  // ───────────────────────────────────────────────────────────────────
   function showSignInError(msg) {
-    if (!msg) { signInError.classList.add("hidden"); signInError.textContent = ""; return; }
-    signInError.textContent = msg;
-    signInError.classList.remove("hidden");
+    const el = $('signInError');
+    if (!msg) { el.classList.add('hidden'); el.textContent = ''; return; }
+    el.textContent = msg; el.classList.remove('hidden');
   }
   function friendlyAuthError(err) {
     const code = err && err.code;
@@ -354,291 +1071,295 @@
     return (err && err.message) ? err.message : "Sign-in failed. Please try again.";
   }
 
-  // -- Sign in / sign out ----------------------------------------------
-  signInBtn.addEventListener("click", async () => {
+  $('btnSignIn').addEventListener('click', async () => {
     showSignInError(null);
-    signInBtn.disabled = true;
-    const original = signInBtn.textContent;
-    signInBtn.textContent = "Signing in…";
+    const btn = $('btnSignIn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.textContent = 'Signing in…';
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (err) {
-      console.error("[auth] sign-in failed", err);
+      console.error('[auth] sign-in failed', err);
       showSignInError(friendlyAuthError(err));
     } finally {
-      signInBtn.disabled = false;
-      signInBtn.textContent = original;
+      btn.disabled = false;
+      btn.innerHTML = original;
     }
   });
 
-  document.getElementById("btnSignOut").addEventListener("click", async () => {
+  async function doSignOut() {
     try { await signOut(auth); }
-    catch (err) { console.error("[auth] sign-out failed", err); alert("Sign out failed. Please try again."); }
-  });
-
-  // -- Signed-in card population ---------------------------------------
-  const userAvatar = document.getElementById("userAvatar");
-  const userName   = document.getElementById("userName");
-  const userEmail  = document.getElementById("userEmail");
-
-  function renderUser(user) {
-    const name  = user.displayName || "";
-    const email = user.email || "";
-    userName.textContent  = name || email || "Signed in";
-    userEmail.textContent = (name && email) ? email : "";
-
-    userAvatar.innerHTML = "";
-    if (user.photoURL) {
-      const img = document.createElement("img");
-      img.src = user.photoURL;
-      img.alt = name || email || "avatar";
-      img.referrerPolicy = "no-referrer";
-      img.onerror = () => { userAvatar.textContent = (name || email || "?").charAt(0).toUpperCase(); };
-      userAvatar.appendChild(img);
-    } else {
-      userAvatar.textContent = (name || email || "?").charAt(0).toUpperCase();
-    }
+    catch (err) { console.error('[auth] sign-out failed', err); alert('Sign out failed. Please try again.'); }
   }
 
-  // -- Household: state ------------------------------------------------
-  const hhEls = {
-    loading: document.getElementById("hh-loading"),
-    none:    document.getElementById("hh-none"),
-    has:     document.getElementById("hh-has"),
-    error:   document.getElementById("hhError"),
-
-    createNameInput: document.getElementById("hhCreateName"),
-    btnCreate:       document.getElementById("btnCreateHousehold"),
-    joinCodeInput:   document.getElementById("hhJoinCode"),
-    btnJoin:         document.getElementById("btnJoinHousehold"),
-
-    name:            document.getElementById("hhName"),
-    members:         document.getElementById("hhMembers"),
-
-    invite:          document.getElementById("hh-invite"),
-    inviteCode:      document.getElementById("hhInviteCode"),
-    inviteMeta:      document.getElementById("hhInviteMeta"),
-    inviteExpired:   document.getElementById("hhInviteExpired"),
-    btnRegenerate:   document.getElementById("btnRegenerate"),
-    btnCopy:         document.getElementById("btnCopyCode"),
-    btnShare:        document.getElementById("btnShareCode"),
-  };
-
-  let unsubHousehold = null;
-  let currentHouseholdId = null;
-  let currentHousehold = null;
-  let inviteTicker = null;
-
-  function showHHView(name) {
-    [hhEls.loading, hhEls.none, hhEls.has].forEach(el => el.classList.add("hidden"));
-    if (name === "loading") hhEls.loading.classList.remove("hidden");
-    if (name === "none")    hhEls.none.classList.remove("hidden");
-    if (name === "has")     hhEls.has.classList.remove("hidden");
-  }
-  function showHHError(msg) {
-    if (!msg) { hhEls.error.classList.add("hidden"); hhEls.error.textContent = ""; return; }
-    hhEls.error.textContent = msg;
-    hhEls.error.classList.remove("hidden");
-  }
-
-  // -- Household: helpers ---------------------------------------------
-  function generateCode() {
-    return String(Math.floor(100000 + Math.random() * 900000));
-  }
-  function profileFor(user) {
-    return {
-      name:    user.displayName || "",
-      email:   user.email       || "",
-      photoURL: user.photoURL   || "",
-    };
-  }
-  function formatHHMMRemaining(ms) {
-    if (ms <= 0) return "0m";
-    const totalMin = Math.floor(ms / 60000);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    if (h <= 0) return `${m}m`;
-    return `${h}h ${m}m`;
-  }
-
-  // -- Household: subscribe to the user's household -------------------
+  // ───────────────────────────────────────────────────────────────────
+  // Household: subscribe + render
+  // ───────────────────────────────────────────────────────────────────
   function subscribeToHousehold(uid) {
     if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
-    showHHView("loading");
-    currentHouseholdId = null;
-    currentHousehold   = null;
+    if (unsubBills) { unsubBills(); unsubBills = null; }
+    show('loading');
+    currentHouseholdId = null; currentHousehold = null; bills = [];
 
-    const q = query(collection(db, "households"), where("members", "array-contains", uid));
+    const q = query(collection(db, 'households'), where('members', 'array-contains', uid));
     unsubHousehold = onSnapshot(q, (snap) => {
       if (snap.empty) {
         currentHouseholdId = null;
         currentHousehold = null;
-        renderHousehold(null);
-        showHHView("none");
+        if (unsubBills) { unsubBills(); unsubBills = null; }
+        if (onboardingMode === 'join') {
+          show('join');
+        } else {
+          show('householdChoice');
+        }
         return;
       }
       const docSnap = snap.docs[0];
       currentHouseholdId = docSnap.id;
-      currentHousehold   = docSnap.data();
-      renderHousehold(currentHousehold);
-      showHHView("has");
+      currentHousehold = docSnap.data();
+
+      // First time we land in a household via Create, briefly show invite screen
+      // until a 2nd member joins (then auto-progress to Stack).
+      const memberCount = (currentHousehold.members || []).length;
+      if (onboardingMode === 'created' && memberCount < 2) {
+        renderHouseholdCreated();
+        show('householdCreated');
+      } else {
+        onboardingMode = null;
+        renderStackHeader();
+        renderMenu();
+        show('stack');
+        subscribeToBills(currentHouseholdId);
+      }
     }, (err) => {
-      console.error("[household] snapshot failed", err);
-      showHHError("Couldn't load your household: " + (err.message || err.code));
-      showHHView("none");
+      console.error('[household] snapshot failed', err);
+      const banner = $('hhChoiceError');
+      banner.textContent = "Couldn't load your household: " + (err.message || err.code);
+      banner.classList.remove('hidden');
+      show('householdChoice');
     });
   }
 
-  // -- Household: render ----------------------------------------------
-  function renderHousehold(hh) {
-    if (inviteTicker) { clearInterval(inviteTicker); inviteTicker = null; }
-    if (!hh) return;
-
-    hhEls.name.textContent = hh.displayName || "Our Household";
-
-    // Members
-    hhEls.members.innerHTML = "";
-    const me = auth.currentUser && auth.currentUser.uid;
-    (hh.members || []).forEach(uid => {
-      const profile = (hh.memberProfiles && hh.memberProfiles[uid]) || {};
-      const label = profile.name || profile.email || "Member";
-      const pill = document.createElement("span");
-      pill.className = "pill" + (uid === me ? " you" : "");
-      pill.textContent = label + (uid === me ? " (you)" : "");
-      hhEls.members.appendChild(pill);
+  function renderHouseholdCreated() {
+    if (!currentHousehold || !currentHousehold.inviteCode) return;
+    const code = currentHousehold.inviteCode;
+    const row = $('hhCreatedCode');
+    row.innerHTML = '';
+    code.split('').forEach(d => {
+      const cell = document.createElement('div');
+      cell.className = 'code-cell';
+      cell.textContent = d;
+      row.appendChild(cell);
     });
-
-    // Invite section visibility: only when fewer than 2 members
-    const memberCount = (hh.members || []).length;
-    if (memberCount >= 2) {
-      hhEls.invite.classList.add("hidden");
-      return;
-    }
-    hhEls.invite.classList.remove("hidden");
-
-    if (!hh.inviteCode) {
-      hhEls.inviteCode.textContent = "— — — — — —";
-      hhEls.inviteMeta.textContent = "No active invite. Tap Regenerate to create one.";
-      hhEls.inviteExpired.classList.add("hidden");
-      return;
-    }
-
-    hhEls.inviteCode.textContent = hh.inviteCode.split("").join(" ");
-
-    const expiresAtMs = hh.inviteCodeExpiresAt && hh.inviteCodeExpiresAt.toMillis
-      ? hh.inviteCodeExpiresAt.toMillis() : null;
-
+    if (inviteTicker) { clearInterval(inviteTicker); inviteTicker = null; }
+    const expiresMs = currentHousehold.inviteCodeExpiresAt?.toMillis ? currentHousehold.inviteCodeExpiresAt.toMillis() : null;
     function tick() {
-      if (!expiresAtMs) {
-        hhEls.inviteMeta.textContent = "No expiry set.";
-        hhEls.inviteExpired.classList.add("hidden");
-        return;
-      }
-      const remaining = expiresAtMs - Date.now();
+      const exp = $('hhCreatedExpiry');
+      const expired = $('hhCreatedExpired');
+      if (!expiresMs) { exp.textContent = 'No expiry set.'; expired.classList.add('hidden'); return; }
+      const remaining = expiresMs - Date.now();
       if (remaining <= 0) {
-        hhEls.inviteMeta.textContent = "Expired";
-        hhEls.inviteExpired.classList.remove("hidden");
+        exp.textContent = 'Expired';
+        expired.classList.remove('hidden');
       } else {
-        hhEls.inviteMeta.textContent = "Expires in " + formatHHMMRemaining(remaining);
-        hhEls.inviteExpired.classList.add("hidden");
+        const totalMin = Math.floor(remaining / 60000);
+        const h = Math.floor(totalMin / 60), m = totalMin % 60;
+        exp.textContent = h > 0 ? `Expires in ${h}h ${m}m` : `Expires in ${m}m`;
+        expired.classList.add('hidden');
       }
     }
     tick();
     inviteTicker = setInterval(tick, 30 * 1000);
+    $('hhCreatedSubtitle').textContent = `One other person can join "${currentHousehold.displayName || 'your household'}" with this code.`;
   }
 
-  // -- Household: create ----------------------------------------------
-  hhEls.btnCreate.addEventListener("click", async () => {
-    showHHError(null);
-    const user = auth.currentUser;
-    if (!user) return;
-    const displayName = (hhEls.createNameInput.value || "").trim() || "Our Household";
+  // Choice screen wiring
+  $('btnSignOutChoice').addEventListener('click', doSignOut);
+  $('cardCreate').addEventListener('click', () => doCreateHousehold());
+  $('cardJoin').addEventListener('click', () => { onboardingMode = 'join'; resetJoin(); show('join'); });
 
-    hhEls.btnCreate.disabled = true;
-    const original = hhEls.btnCreate.textContent;
-    hhEls.btnCreate.textContent = "Creating…";
+  $('btnHhCreatedBack').addEventListener('click', doSignOut);
+  $('btnContinueCreated').addEventListener('click', () => {
+    onboardingMode = null;
+    if (currentHousehold) {
+      renderStackHeader(); renderMenu();
+      show('stack');
+      if (currentHouseholdId) subscribeToBills(currentHouseholdId);
+    }
+  });
+  $('btnRegenerateCreated').addEventListener('click', () => doRegenerateCode());
+  $('btnCopyCreated').addEventListener('click', () => doCopyCode($('btnCopyCreated'), $('lblCopyCreated')));
+  $('btnShareCreated').addEventListener('click', () => doShareCode());
 
+  // Create household
+  async function doCreateHousehold() {
+    showHHChoiceError(null);
+    if (!currentUser) return;
+    onboardingMode = 'created';
+    show('householdCreating');
     try {
-      const householdRef = doc(collection(db, "households"));
-      const code = await reserveUniqueCode(householdRef.id, user.uid);
+      const householdRef = doc(collection(db, 'households'));
+      const code = await reserveUniqueCode();
       const expiresAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
-
       const batch = writeBatch(db);
       batch.set(householdRef, {
-        displayName,
+        displayName: 'Our Household',
         createdAt: serverTimestamp(),
-        createdBy: user.uid,
-        members: [user.uid],
-        memberProfiles: { [user.uid]: profileFor(user) },
+        createdBy: currentUser.uid,
+        members: [currentUser.uid],
+        memberProfiles: { [currentUser.uid]: profileFor(currentUser) },
         inviteCode: code,
         inviteCodeExpiresAt: expiresAt,
       });
-      batch.set(doc(db, "inviteCodes", code), {
+      batch.set(doc(db, 'inviteCodes', code), {
         householdId: householdRef.id,
-        createdBy: user.uid,
+        createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
         expiresAt,
       });
       await batch.commit();
+      // The household snapshot will fire and route us to householdCreated.
     } catch (err) {
-      console.error("[household] create failed", err);
-      showHHError("Couldn't create household: " + (err.message || err.code));
-    } finally {
-      hhEls.btnCreate.disabled = false;
-      hhEls.btnCreate.textContent = original;
+      console.error('[household] create failed', err);
+      onboardingMode = null;
+      showHHChoiceError("Couldn't create household: " + (err.message || err.code));
+      show('householdChoice');
     }
-  });
-
-  async function reserveUniqueCode(householdId, uid) {
-    // 6-digit codes; 900k space, max 1 active code per household → collisions extremely rare.
-    // Try a few random codes; bail with error if all collide (effectively never).
+  }
+  function showHHChoiceError(msg) {
+    const el = $('hhChoiceError');
+    if (!msg) { el.classList.add('hidden'); el.textContent = ''; return; }
+    el.textContent = msg; el.classList.remove('hidden');
+  }
+  function profileFor(user) {
+    return { name: user.displayName || '', email: user.email || '', photoURL: user.photoURL || '' };
+  }
+  async function reserveUniqueCode() {
     for (let i = 0; i < 8; i++) {
-      const code = generateCode();
-      const ref  = doc(db, "inviteCodes", code);
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const ref = doc(db, 'inviteCodes', code);
       const snap = await getDoc(ref);
       if (!snap.exists()) return code;
     }
     throw new Error("Couldn't generate a unique invite code. Please try again.");
   }
-
-  // -- Household: join via code ---------------------------------------
-  hhEls.btnJoin.addEventListener("click", async () => {
-    showHHError(null);
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const raw = (hhEls.joinCodeInput.value || "").replace(/\D/g, "");
-    if (raw.length !== 6) {
-      showHHError("Enter the 6-digit code exactly as shared with you.");
-      return;
-    }
-
-    hhEls.btnJoin.disabled = true;
-    const original = hhEls.btnJoin.textContent;
-    hhEls.btnJoin.textContent = "Joining…";
-
+  async function doRegenerateCode() {
+    if (!currentUser || !currentHouseholdId || !currentHousehold) return;
+    const btn = $('btnRegenerateCreated');
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = 'Working…';
     try {
-      const codeRef = doc(db, "inviteCodes", raw);
+      const newCode = await reserveUniqueCode();
+      const expiresAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
+      const oldCode = currentHousehold.inviteCode;
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'households', currentHouseholdId), {
+        inviteCode: newCode,
+        inviteCodeExpiresAt: expiresAt,
+      });
+      batch.set(doc(db, 'inviteCodes', newCode), {
+        householdId: currentHouseholdId,
+        createdBy: currentUser.uid,
+        createdAt: serverTimestamp(),
+        expiresAt,
+      });
+      if (oldCode && oldCode !== newCode) {
+        batch.delete(doc(db, 'inviteCodes', oldCode));
+      }
+      await batch.commit();
+    } catch (err) {
+      console.error('[household] regenerate failed', err);
+      alert("Couldn't regenerate code: " + (err.message || err.code));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = old;
+    }
+  }
+  async function doCopyCode(btn, label) {
+    if (!currentHousehold || !currentHousehold.inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(currentHousehold.inviteCode);
+      const original = label.textContent;
+      label.textContent = 'Copied!';
+      setTimeout(() => { label.textContent = original; }, 1500);
+    } catch (err) {
+      console.warn('[household] copy failed', err);
+    }
+  }
+  async function doShareCode() {
+    if (!currentHousehold || !currentHousehold.inviteCode) return;
+    const code = currentHousehold.inviteCode;
+    const text = `Join our BillOS household with code ${code} (expires in 24h).`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'BillOS invite', text }); } catch (_) {}
+    } else {
+      try { await navigator.clipboard.writeText(text); } catch (_) {}
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Join screen (keypad-style 6 digit entry)
+  // ───────────────────────────────────────────────────────────────────
+  let joinCode = '';
+  function renderJoinCells(error) {
+    const row = $('joinCodeRow');
+    row.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'code-cell';
+      if (error) cell.classList.add('error');
+      else if (joinCode.length === i) cell.classList.add('active');
+      cell.textContent = joinCode[i] ?? '';
+      row.appendChild(cell);
+    }
+  }
+  function setJoinStatus(html, color) {
+    const el = $('joinStatus');
+    el.innerHTML = html || '';
+    el.style.color = color || 'var(--text-muted)';
+  }
+  function buildKeypad() {
+    const pad = $('keypad');
+    pad.innerHTML = '';
+    const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+    keys.forEach(k => {
+      const cell = document.createElement('div');
+      cell.className = 'keypad-key' + (k === '' ? ' empty' : '');
+      cell.textContent = k;
+      if (k && k !== '⌫') {
+        cell.addEventListener('click', () => { if (joinCode.length < 6) { joinCode += k; renderJoinCells(false); maybeSubmitJoin(); } });
+      } else if (k === '⌫') {
+        cell.addEventListener('click', () => { joinCode = joinCode.slice(0, -1); renderJoinCells(false); setJoinStatus(null); });
+      }
+      pad.appendChild(cell);
+    });
+  }
+  function resetJoin() { joinCode = ''; renderJoinCells(false); setJoinStatus(null); }
+  $('btnJoinBack').addEventListener('click', () => { onboardingMode = null; show('householdChoice'); });
+
+  async function maybeSubmitJoin() {
+    if (joinCode.length !== 6) return;
+    setJoinStatus('Joining…', 'var(--accent)');
+    try {
+      const codeRef = doc(db, 'inviteCodes', joinCode);
       const codeSnap = await getDoc(codeRef);
       if (!codeSnap.exists()) throw new Error("That code doesn't match any household.");
       const codeData = codeSnap.data();
-      const expiresAtMs = codeData.expiresAt && codeData.expiresAt.toMillis
-        ? codeData.expiresAt.toMillis() : 0;
-      if (expiresAtMs && expiresAtMs < Date.now()) {
-        throw new Error("That code has expired. Ask the other person to regenerate it.");
-      }
+      const expMs = codeData.expiresAt && codeData.expiresAt.toMillis ? codeData.expiresAt.toMillis() : 0;
+      if (expMs && expMs < Date.now()) throw new Error("That code has expired. Ask the other person to regenerate it.");
 
-      const householdRef = doc(db, "households", codeData.householdId);
+      const householdRef = doc(db, 'households', codeData.householdId);
       await runTransaction(db, async (tx) => {
         const hhSnap = await tx.get(householdRef);
         if (!hhSnap.exists()) throw new Error("Household no longer exists.");
         const hh = hhSnap.data();
         const members = hh.members || [];
-        if (members.includes(user.uid)) return; // already a member, no-op
+        if (members.includes(currentUser.uid)) return;
         if (members.length >= 2) throw new Error("This household is already full (max 2 members).");
-
-        const newMembers = [...members, user.uid];
-        const newProfiles = { ...(hh.memberProfiles || {}), [user.uid]: profileFor(user) };
+        const newMembers = [...members, currentUser.uid];
+        const newProfiles = { ...(hh.memberProfiles || {}), [currentUser.uid]: profileFor(currentUser) };
         tx.update(householdRef, {
           members: newMembers,
           memberProfiles: newProfiles,
@@ -647,223 +1368,536 @@
         });
         tx.delete(codeRef);
       });
+      onboardingMode = null;
+      // The household subscription will pick up the membership change and route us.
     } catch (err) {
-      console.error("[household] join failed", err);
-      showHHError(err.message || "Couldn't join that household.");
-    } finally {
-      hhEls.btnJoin.disabled = false;
-      hhEls.btnJoin.textContent = original;
+      console.error('[household] join failed', err);
+      renderJoinCells(true);
+      setJoinStatus(`<span style="color: var(--danger);">${err.message || "Couldn't join that household."}</span>`);
+      setTimeout(() => { joinCode = ''; renderJoinCells(false); setJoinStatus('Six digits, from whoever set up the household.', 'var(--text-muted)'); }, 2200);
     }
-  });
-
-  // -- Household: regenerate code -------------------------------------
-  hhEls.btnRegenerate.addEventListener("click", async () => {
-    showHHError(null);
-    const user = auth.currentUser;
-    if (!user || !currentHouseholdId || !currentHousehold) return;
-
-    hhEls.btnRegenerate.disabled = true;
-    const original = hhEls.btnRegenerate.textContent;
-    hhEls.btnRegenerate.textContent = "Working…";
-
-    try {
-      const newCode = await reserveUniqueCode(currentHouseholdId, user.uid);
-      const expiresAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
-      const oldCode = currentHousehold.inviteCode;
-
-      const batch = writeBatch(db);
-      batch.update(doc(db, "households", currentHouseholdId), {
-        inviteCode: newCode,
-        inviteCodeExpiresAt: expiresAt,
-      });
-      batch.set(doc(db, "inviteCodes", newCode), {
-        householdId: currentHouseholdId,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        expiresAt,
-      });
-      if (oldCode && oldCode !== newCode) {
-        batch.delete(doc(db, "inviteCodes", oldCode));
-      }
-      await batch.commit();
-    } catch (err) {
-      console.error("[household] regenerate failed", err);
-      showHHError("Couldn't regenerate code: " + (err.message || err.code));
-    } finally {
-      hhEls.btnRegenerate.disabled = false;
-      hhEls.btnRegenerate.textContent = original;
-    }
-  });
-
-  // -- Household: copy / share invite ---------------------------------
-  hhEls.btnCopy.addEventListener("click", async () => {
-    if (!currentHousehold || !currentHousehold.inviteCode) return;
-    try {
-      await navigator.clipboard.writeText(currentHousehold.inviteCode);
-      const original = hhEls.btnCopy.textContent;
-      hhEls.btnCopy.textContent = "Copied!";
-      setTimeout(() => { hhEls.btnCopy.textContent = original; }, 1500);
-    } catch (err) {
-      console.warn("[household] copy failed", err);
-      showHHError("Couldn't copy automatically. Long-press the code to copy it.");
-    }
-  });
-
-  hhEls.btnShare.addEventListener("click", async () => {
-    if (!currentHousehold || !currentHousehold.inviteCode) return;
-    const code = currentHousehold.inviteCode;
-    const text = `Join our BillOS household with code ${code} (expires in 24h).`;
-    if (navigator.share) {
-      try { await navigator.share({ title: "BillOS invite", text }); }
-      catch (_) { /* user cancelled */ }
-    } else {
-      try {
-        await navigator.clipboard.writeText(text);
-        const original = hhEls.btnShare.textContent;
-        hhEls.btnShare.textContent = "Copied invite!";
-        setTimeout(() => { hhEls.btnShare.textContent = original; }, 1500);
-      } catch (_) {}
-    }
-  });
-
-  // -- Bills: add bill form -------------------------------------------
-  const billEls = {
-    toggle:    document.getElementById("btnToggleAddBill"),
-    cancel:    document.getElementById("btnCancelAddBill"),
-    form:      document.getElementById("addBillForm"),
-    error:     document.getElementById("addBillError"),
-    saved:     document.getElementById("addBillSaved"),
-    empty:     document.getElementById("addBillEmpty"),
-    name:      document.getElementById("billName"),
-    amount:    document.getElementById("billAmount"),
-    frequency: document.getElementById("billFrequency"),
-    category:  document.getElementById("billCategory"),
-    nextDue:   document.getElementById("billNextDue"),
-    save:      document.getElementById("btnSaveBill"),
-  };
-  let savedBillTimer = null;
-
-  function showBillError(msg) {
-    if (!msg) { billEls.error.classList.add("hidden"); billEls.error.textContent = ""; return; }
-    billEls.error.textContent = msg;
-    billEls.error.classList.remove("hidden");
   }
-  function flashSavedBill() {
-    billEls.saved.classList.remove("hidden");
-    if (savedBillTimer) clearTimeout(savedBillTimer);
-    savedBillTimer = setTimeout(() => billEls.saved.classList.add("hidden"), 3000);
+  buildKeypad();
+
+  // ───────────────────────────────────────────────────────────────────
+  // Stack header / menu
+  // ───────────────────────────────────────────────────────────────────
+  function memberLabel(uid) {
+    if (uid === 'shared') return 'Shared';
+    const p = currentHousehold?.memberProfiles?.[uid];
+    if (!p) return 'Member';
+    const first = (p.name || '').split(' ')[0];
+    return first || p.email || 'Member';
   }
-  function openAddBill() {
-    showBillError(null);
-    billEls.form.classList.remove("hidden");
-    billEls.empty.classList.add("hidden");
-    billEls.toggle.classList.add("hidden");
-    setTimeout(() => billEls.name.focus(), 0);
+  function memberInitial(uid) {
+    return memberLabel(uid).charAt(0).toUpperCase();
   }
-  function closeAddBill() {
-    billEls.form.classList.add("hidden");
-    billEls.toggle.classList.remove("hidden");
-    billEls.empty.classList.remove("hidden");
-    showBillError(null);
-    billEls.form.reset();
-    billEls.category.value = "other";
-    billEls.frequency.value = "monthly";
+  function otherMemberUid() {
+    if (!currentHousehold || !currentUser) return null;
+    return (currentHousehold.members || []).find(uid => uid !== currentUser.uid) || null;
   }
 
-  billEls.toggle.addEventListener("click", openAddBill);
-  billEls.cancel.addEventListener("click", closeAddBill);
+  function renderStackHeader() {
+    const visible = bills.filter(b => b.status === 'active');
+    const filtered = applyFilter(visible);
+    const total = filtered.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+    $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${fmtINR(total)} this cycle`;
+  }
 
-  billEls.form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    showBillError(null);
-    const user = auth.currentUser;
-    if (!user || !currentHouseholdId) {
-      showBillError("You need to be in a household to add bills.");
-      return;
+  function renderChips() {
+    const inner = $('chipStripInner');
+    inner.innerHTML = '';
+    const me = currentUser?.uid;
+    const otherUid = otherMemberUid();
+    const otherName = otherUid ? memberLabel(otherUid) : null;
+    const chips = [
+      { id: 'all', label: 'All' },
+      me ? { id: 'mine', label: 'Mine' } : null,
+      otherUid ? { id: 'other', label: otherName } : null,
+      { id: 'shared', label: 'Shared' },
+      { id: 'utilities',     label: 'Utilities' },
+      { id: 'subscriptions', label: 'Subs' },
+      { id: 'credit_cards',  label: 'Cards' },
+      { id: 'people',        label: 'Staff' },
+      { id: 'other',         label: 'Other' },
+    ].filter(Boolean);
+    // 'other' chip clashes with member-other id; rename member chip id to 'member_other'
+    if (otherUid) {
+      const memberChip = chips.find(c => c.label === otherName);
+      if (memberChip) memberChip.id = 'member_other';
     }
-
-    const name = billEls.name.value.trim();
-    if (!name) { showBillError("Give the bill a name."); billEls.name.focus(); return; }
-
-    const amountRaw = billEls.amount.value;
-    const amount = Number(amountRaw);
-    if (!amountRaw || !isFinite(amount) || amount < 0) {
-      showBillError("Enter a valid amount in rupees."); billEls.amount.focus(); return;
-    }
-
-    const frequency = billEls.frequency.value;
-    if (!["weekly","monthly","quarterly","yearly","one_time"].includes(frequency)) {
-      showBillError("Pick a frequency."); return;
-    }
-    const category = billEls.category.value;
-    if (!["utilities","subscriptions","credit_cards","people","other"].includes(category)) {
-      showBillError("Pick a category."); return;
-    }
-
-    let nextDue = null;
-    if (billEls.nextDue.value) {
-      // Treat the date input as a local calendar date in IST. Anchor at 09:00 IST so
-      // a "today" choice stays today regardless of viewer timezone shifts.
-      const [y, m, d] = billEls.nextDue.value.split("-").map(Number);
-      // 09:00 IST == 03:30 UTC same day (IST = UTC+5:30).
-      const ms = Date.UTC(y, m - 1, d, 3, 30);
-      nextDue = Timestamp.fromMillis(ms);
-    }
-
-    billEls.save.disabled = true;
-    billEls.save.textContent = "Saving…";
-    try {
-      const billRef = doc(collection(db, "households", currentHouseholdId, "bills"));
-      await setDoc(billRef, {
-        name,
-        amount,
-        frequency,
-        category,
-        owner: "shared",
-        nextDue,
-        status: "active",
-        notes: null,
-        createdAt: serverTimestamp(),
-        createdBy: user.uid,
-        updatedAt: serverTimestamp(),
-      });
-      closeAddBill();
-      flashSavedBill();
-    } catch (err) {
-      console.error("[bills] save failed", err);
-      showBillError("Couldn't save the bill: " + (err.message || err.code));
-    } finally {
-      billEls.save.disabled = false;
-      billEls.save.textContent = "Save bill";
-    }
-  });
-
-  // -- Auth → household lifecycle -------------------------------------
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      renderUser(user);
-      show("signedIn");
-      subscribeToHousehold(user.uid);
-    } else {
-      if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
-      if (inviteTicker)   { clearInterval(inviteTicker); inviteTicker = null; }
-      currentHouseholdId = null;
-      currentHousehold = null;
-      showHHError(null);
-      showSignInError(null);
-      show("signedOut");
-    }
-  });
-
-  // -- Service worker ---------------------------------------------------
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch(err => console.warn("[sw] register failed", err));
+    chips.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'chip' + (activeFilter === c.id ? ' active' : '');
+      btn.textContent = c.label;
+      btn.addEventListener('click', () => { activeFilter = c.id; renderChips(); renderFeed(); renderStackHeader(); });
+      inner.appendChild(btn);
     });
   }
 
-  // expose for console debugging during build
-  window.__billos = { app, auth, db };
+  function applyFilter(list) {
+    const me = currentUser?.uid;
+    const otherUid = otherMemberUid();
+    return list.filter(b => {
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'mine')   return b.owner === me;
+      if (activeFilter === 'shared') return b.owner === 'shared';
+      if (activeFilter === 'member_other') return b.owner === otherUid;
+      // category filters
+      const cat = b.cat || b.category;
+      return cat === activeFilter;
+    });
+  }
+
+  function renderMenu() {
+    $('menuHouseholdName').textContent = currentHousehold?.displayName || 'Household';
+    const memEl = $('menuMembers');
+    memEl.innerHTML = '';
+    (currentHousehold?.members || []).forEach(uid => {
+      const pill = document.createElement('span');
+      pill.className = 'pill' + (uid === currentUser?.uid ? ' you' : '');
+      pill.textContent = memberLabel(uid) + (uid === currentUser?.uid ? ' (you)' : '');
+      memEl.appendChild(pill);
+    });
+  }
+  $('btnMenu').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    $('menuPop').classList.toggle('open');
+  });
+  document.addEventListener('click', (ev) => {
+    const pop = $('menuPop');
+    if (!pop.contains(ev.target) && ev.target !== $('btnMenu')) pop.classList.remove('open');
+  });
+  $('menuSignOut').addEventListener('click', doSignOut);
+
+  // ───────────────────────────────────────────────────────────────────
+  // Bills: subscribe + render feed
+  // ───────────────────────────────────────────────────────────────────
+  function subscribeToBills(hid) {
+    if (unsubBills) { unsubBills(); unsubBills = null; }
+    bills = [];
+    const billsRef = collection(db, 'households', hid, 'bills');
+    unsubBills = onSnapshot(billsRef, (snap) => {
+      bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderFeed();
+      renderStackHeader();
+      renderChips();
+    }, (err) => {
+      console.error('[bills] snapshot failed', err);
+    });
+  }
+
+  function renderFeed() {
+    const feed = $('feed');
+    feed.innerHTML = '';
+    const visible = applyFilter(bills.filter(b => b.status !== 'cancelled'))
+      .sort((a, b) => {
+        const da = dateFromBill(a.nextDue);
+        const dbd = dateFromBill(b.nextDue);
+        const ta = da ? da.getTime() : Number.POSITIVE_INFINITY;
+        const tb = dbd ? dbd.getTime() : Number.POSITIVE_INFINITY;
+        return ta - tb;
+      });
+
+    if (visible.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      if (bills.length === 0) {
+        empty.innerHTML = `
+          <div>No bills yet.</div>
+          <div style="margin-top: 8px;">Tap <strong>+</strong> to add your first one.</div>
+        `;
+      } else {
+        empty.textContent = 'Nothing matches this filter.';
+      }
+      feed.appendChild(empty);
+    } else {
+      visible.forEach(b => feed.appendChild(billCardEl(b)));
+    }
+
+    // Re-paint open detail modal if its bill changed
+    if (activeDetailBillId && !dt.modal.hidden) paintDetail();
+  }
+
+  function billCardEl(b) {
+    const cat = b.cat || b.category || 'other';
+    const freq = b.freq || b.frequency || 'monthly';
+    const dueDate = dateFromBill(b.nextDue);
+    const days = daysFromToday(dueDate);
+    const dueText = dueLabel(dueDate);
+
+    const card = document.createElement('div');
+    card.className = 'bill-card pressable';
+    if (b.status === 'paused')    card.classList.add('is-paused');
+    if (b.status === 'cancelled') card.classList.add('is-cancelled');
+
+    const dueClass = isFinite(days)
+      ? (days < 0 ? ' is-overdue' : (days <= 3 ? ' is-soon' : ''))
+      : '';
+
+    const ownerLabelText = b.owner === 'shared' ? 'Shared' : memberLabel(b.owner);
+    const ownerInit = b.owner === 'shared' ? 'S' : (memberInitial(b.owner) || '·');
+
+    const catLabel = (CATEGORIES[cat]?.label || 'Other').toUpperCase();
+    const freqLabel = (FREQ_LABEL[freq] || freq).replace('every ', '').toUpperCase();
+
+    card.innerHTML = `
+      <div class="bill-row-top">
+        <span class="cat-chip cat-${cat} sm">${categoryIcon(cat)}</span>
+        <div class="bill-cat-meta">${catLabel} · ${freqLabel}</div>
+        <div class="due-pill${dueClass}">${dueText}</div>
+      </div>
+      <div class="bill-row-main">
+        <div class="bill-name">${escapeHtml(b.name || 'Untitled')}</div>
+        <span class="amount" style="font-size: 20px; font-weight: 700; letter-spacing: -0.2px;"><span class="sym">₹</span>${indianGroup(b.amount)}</span>
+      </div>
+      <div class="bill-row-foot">
+        <div class="owner-mini">
+          <div class="owner-initial">${escapeHtml(ownerInit)}</div>
+          <div class="owner-name">${escapeHtml(ownerLabelText)}</div>
+        </div>
+        <div class="next-meta">· next ${dueDate ? fmtDate(dueDate) : 'no date'}</div>
+        ${b.status === 'paused' ? '<div class="next-meta" style="color: var(--warn);">· paused</div>' : ''}
+      </div>
+    `;
+    card.addEventListener('click', () => openDetail(b.id));
+    return card;
+  }
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Add bill modal
+  // ───────────────────────────────────────────────────────────────────
+  const ab = {
+    overlay: $('modalOverlay'),
+    modal:   $('modalAddBill'),
+    title:   $('abTitle'),
+    cancel:  $('abCancel'),
+    save:    $('abSave'),
+    submit:  $('abSubmit'),
+    error:   $('abError'),
+    name:    $('abName'),
+    amount:  $('abAmount'),
+    preview: $('abAmountPreview'),
+    freq:    $('abFreq'),
+    cat:     $('abCat'),
+    owner:   $('abOwner'),
+    nextDue: $('abNextDue'),
+    notes:   $('abNotes'),
+  };
+  let abState = null;
+
+  function buildSegmented(container, options, currentVal, onChange) {
+    container.innerHTML = '';
+    options.forEach(o => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'seg-key' + (currentVal === o.id ? ' active' : '');
+      b.textContent = o.label;
+      b.addEventListener('click', () => onChange(o.id));
+      container.appendChild(b);
+    });
+  }
+  function buildCatList(container, currentVal, onChange) {
+    container.innerHTML = '';
+    CAT_ORDER.forEach(c => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'cat-row' + (currentVal === c ? ' active' : '');
+      const meta = CATEGORIES[c];
+      row.innerHTML = `
+        <span class="cat-chip cat-${c} sm">${categoryIcon(c)}</span>
+        <div class="cat-label">${meta.label}</div>
+        ${currentVal === c ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="var(--accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      `;
+      row.addEventListener('click', () => onChange(c));
+      container.appendChild(row);
+    });
+  }
+
+  function abValidate() {
+    const valid = abState && abState.name.trim() && Number(abState.amount) > 0 && abState.freq;
+    ab.save.disabled = !valid;
+    ab.submit.disabled = !valid;
+    if (valid) {
+      ab.submit.textContent = `Save · ₹${indianGroup(Number(abState.amount))} ${abState.freq}`;
+    } else {
+      ab.submit.textContent = 'Add 3 required fields';
+    }
+  }
+  function abPaint() {
+    ab.name.value = abState.name;
+    ab.amount.value = abState.amount === 0 ? '' : String(abState.amount);
+    ab.preview.textContent = abState.amount > 0 ? fmtINR(abState.amount) : '';
+    ab.nextDue.value = abState.nextDueYMD || '';
+    ab.notes.value = abState.notes || '';
+    buildSegmented(ab.freq, FREQS.slice(0, 3), abState.freq, (v) => { abState.freq = v; abPaint(); });
+    buildCatList(ab.cat, abState.cat, (v) => { abState.cat = v; abPaint(); });
+    const me = currentUser?.uid;
+    const otherUid = otherMemberUid();
+    const ownerOpts = [
+      me ? { id: me, label: 'Me' } : null,
+      { id: 'shared', label: 'Shared' },
+      otherUid ? { id: otherUid, label: memberLabel(otherUid) } : null,
+    ].filter(Boolean);
+    buildSegmented(ab.owner, ownerOpts, abState.owner, (v) => { abState.owner = v; abPaint(); });
+    abValidate();
+  }
+  function showAbError(msg) {
+    if (!msg) { ab.error.classList.add('hidden'); ab.error.textContent = ''; return; }
+    ab.error.textContent = msg; ab.error.classList.remove('hidden');
+  }
+
+  function openAddBill(prefill) {
+    showAbError(null);
+    editingBillId = prefill?.id || null;
+    abState = {
+      name:       prefill?.name || '',
+      amount:     prefill ? Number(prefill.amount || 0) : 0,
+      freq:       prefill?.freq || prefill?.frequency || 'monthly',
+      cat:        prefill?.cat  || prefill?.category  || 'utilities',
+      owner:      prefill?.owner || (currentUser?.uid || 'shared'),
+      nextDueYMD: prefill?.nextDue ? ymdLocalIST(dateFromBill(prefill.nextDue)) : '',
+      notes:      prefill?.notes || '',
+    };
+    ab.title.textContent = editingBillId ? 'Edit bill' : 'New bill';
+    abPaint();
+    openModal(ab.overlay, ab.modal);
+    setTimeout(() => ab.name.focus(), 60);
+  }
+  function closeAddBill() { closeModal(ab.overlay, ab.modal); editingBillId = null; }
+
+  ab.cancel.addEventListener('click', closeAddBill);
+  ab.name.addEventListener('input', () => { abState.name = ab.name.value; abValidate(); });
+  ab.amount.addEventListener('input', () => {
+    const cleaned = ab.amount.value.replace(/[^0-9]/g, '');
+    ab.amount.value = cleaned;
+    abState.amount = Number(cleaned) || 0;
+    ab.preview.textContent = abState.amount > 0 ? fmtINR(abState.amount) : '';
+    abValidate();
+  });
+  ab.nextDue.addEventListener('change', () => { abState.nextDueYMD = ab.nextDue.value; });
+  ab.notes.addEventListener('input', () => { abState.notes = ab.notes.value; });
+
+  async function submitAddBill() {
+    if (!currentUser || !currentHouseholdId) { showAbError('You need to be in a household to add bills.'); return; }
+    if (!abState.name.trim()) { showAbError('Give the bill a name.'); ab.name.focus(); return; }
+    if (!(Number(abState.amount) > 0)) { showAbError('Enter an amount in rupees.'); ab.amount.focus(); return; }
+
+    ab.submit.disabled = true; ab.save.disabled = true;
+    const original = ab.submit.textContent;
+    ab.submit.textContent = 'Saving…';
+
+    const payload = {
+      name:    abState.name.trim(),
+      amount:  Number(abState.amount),
+      freq:    abState.freq,
+      cat:     abState.cat,
+      owner:   abState.owner,
+      nextDue: timestampFromYMD(abState.nextDueYMD),
+      notes:   abState.notes.trim() || null,
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      if (editingBillId) {
+        await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', editingBillId), payload);
+      } else {
+        const newRef = doc(collection(db, 'households', currentHouseholdId, 'bills'));
+        await setDoc(newRef, {
+          ...payload,
+          status:    'active',
+          createdAt: serverTimestamp(),
+          createdBy: currentUser.uid,
+        });
+      }
+      closeAddBill();
+    } catch (err) {
+      console.error('[bills] save failed', err);
+      showAbError("Couldn't save the bill: " + (err.message || err.code));
+      ab.submit.disabled = false; ab.save.disabled = false; ab.submit.textContent = original;
+    }
+  }
+  ab.save.addEventListener('click', submitAddBill);
+  ab.submit.addEventListener('click', submitAddBill);
+  $('btnAddBill').addEventListener('click', () => openAddBill(null));
+
+  // ───────────────────────────────────────────────────────────────────
+  // Detail modal
+  // ───────────────────────────────────────────────────────────────────
+  const dt = {
+    overlay:  $('modalDetailOverlay'),
+    modal:    $('modalDetail'),
+    back:     $('dtBack'),
+    edit:     $('dtEdit'),
+    catChip:  $('dtCatChip'),
+    name:     $('dtName'),
+    amount:   $('dtAmount'),
+    meta:     $('dtMeta'),
+    statusPill: $('dtStatusPill'),
+    category: $('dtCategory'),
+    frequency: $('dtFrequency'),
+    nextDue:  $('dtNextDue'),
+    owner:    $('dtOwner'),
+    notesRow: $('dtNotesRow'),
+    notes:    $('dtNotes'),
+    added:    $('dtAdded'),
+    pause:    $('dtPause'),
+    cancel:   $('dtCancel'),
+  };
+
+  function openDetail(billId) {
+    activeDetailBillId = billId;
+    paintDetail();
+    openModal(dt.overlay, dt.modal);
+  }
+  function closeDetail() { closeModal(dt.overlay, dt.modal); activeDetailBillId = null; }
+  dt.back.addEventListener('click', closeDetail);
+
+  function paintDetail() {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b) { closeDetail(); return; }
+    const cat = b.cat || b.category || 'other';
+    const freq = b.freq || b.frequency || 'monthly';
+    const dueDate = dateFromBill(b.nextDue);
+
+    dt.catChip.className = 'cat-chip lg cat-' + cat;
+    dt.catChip.innerHTML = categoryIcon(cat);
+
+    dt.name.textContent = b.name || 'Untitled';
+    dt.name.classList.toggle('is-cancelled', b.status === 'cancelled');
+
+    dt.amount.innerHTML = `<span class="sym">₹</span>${indianGroup(b.amount || 0)}`;
+    dt.meta.textContent = `${FREQ_LABEL[freq] || freq} · next ${dueDate ? fmtDate(dueDate) : '—'}`;
+
+    if (b.status === 'paused') {
+      dt.statusPill.className = 'status-pill status-paused';
+      dt.statusPill.textContent = 'Paused';
+      dt.statusPill.classList.remove('hidden');
+    } else if (b.status === 'cancelled') {
+      dt.statusPill.className = 'status-pill status-cancelled';
+      dt.statusPill.textContent = 'Cancelled';
+      dt.statusPill.classList.remove('hidden');
+    } else {
+      dt.statusPill.classList.add('hidden');
+    }
+
+    dt.category.innerHTML = `<span class="cat-dot cat-${cat}"></span> ${CATEGORIES[cat]?.label || 'Other'}`;
+    dt.category.style.display = 'inline-flex';
+    dt.category.style.alignItems = 'center';
+    dt.category.style.gap = '8px';
+    dt.category.style.justifyContent = 'flex-end';
+
+    dt.frequency.textContent = FREQ_LABEL[freq] || freq;
+    dt.nextDue.textContent = dueDate ? fmtDate(dueDate) : '—';
+    dt.owner.textContent = b.owner === 'shared' ? 'Shared' : memberLabel(b.owner);
+
+    if (b.notes) {
+      dt.notes.textContent = b.notes;
+      dt.notesRow.classList.remove('hidden');
+    } else {
+      dt.notesRow.classList.add('hidden');
+    }
+
+    const addedBy = b.createdBy ? memberLabel(b.createdBy) : '—';
+    const addedDate = dateFromBill(b.createdAt);
+    dt.added.textContent = addedDate ? `${addedBy} · ${fmtDate(addedDate)}` : addedBy;
+
+    // Action buttons reflect status
+    if (b.status === 'cancelled') {
+      dt.pause.classList.add('hidden');
+      dt.cancel.textContent = 'Reactivate bill';
+      dt.cancel.className = 'btn btn-soft btn-full';
+    } else {
+      dt.pause.classList.remove('hidden');
+      dt.pause.textContent = b.status === 'paused' ? 'Reactivate bill' : 'Pause bill';
+      dt.cancel.textContent = 'Cancel bill';
+      dt.cancel.className = 'btn btn-danger btn-full';
+    }
+  }
+
+  async function billUpdate(patch) {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b || !currentHouseholdId) return;
+    try {
+      await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', b.id), {
+        ...patch, updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error('[bills] update failed', err);
+      alert("Couldn't update bill: " + (err.message || err.code));
+    }
+  }
+  dt.pause.addEventListener('click', async () => {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b) return;
+    await billUpdate({ status: b.status === 'paused' ? 'active' : 'paused' });
+    paintDetail();
+  });
+  dt.cancel.addEventListener('click', async () => {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b) return;
+    if (b.status === 'cancelled') {
+      await billUpdate({ status: 'active' });
+    } else {
+      await billUpdate({ status: 'cancelled' });
+    }
+    paintDetail();
+  });
+  dt.edit.addEventListener('click', () => {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b) return;
+    closeDetail();
+    setTimeout(() => openAddBill(b), 220);
+  });
+
+  // ───────────────────────────────────────────────────────────────────
+  // Modal helpers
+  // ───────────────────────────────────────────────────────────────────
+  function openModal(overlay, modal) {
+    overlay.hidden = false; modal.hidden = false;
+    requestAnimationFrame(() => { overlay.classList.add('open'); modal.classList.add('open'); });
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(overlay, modal) {
+    overlay.classList.remove('open'); modal.classList.remove('open');
+    setTimeout(() => { overlay.hidden = true; modal.hidden = true; document.body.style.overflow = ''; }, 240);
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Auth lifecycle
+  // ───────────────────────────────────────────────────────────────────
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user || null;
+    if (user) {
+      subscribeToHousehold(user.uid);
+    } else {
+      if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
+      if (unsubBills) { unsubBills(); unsubBills = null; }
+      if (inviteTicker) { clearInterval(inviteTicker); inviteTicker = null; }
+      currentHouseholdId = null; currentHousehold = null; bills = [];
+      onboardingMode = null;
+      activeFilter = 'all';
+      if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
+      if (!dt.modal.hidden) closeModal(dt.overlay, dt.modal);
+      showSignInError(null);
+      show('signedOut');
+    }
+  });
+
+  // ───────────────────────────────────────────────────────────────────
+  // Service worker
+  // ───────────────────────────────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(err => console.warn('[sw] register failed', err));
+    });
+  }
+
+  window.__billos = { app, auth, db, get bills() { return bills; }, get hh() { return currentHousehold; } };
 </script>
 </body>
 </html>

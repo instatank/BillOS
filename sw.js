@@ -1,7 +1,7 @@
 // BillOS service worker — minimal shell cache for MVP Shell.
 // Phase 2 will tighten the caching strategy.
 
-const VERSION = "v0.1.0";
+const VERSION = "v0.2.0";
 const SHELL_CACHE = `billos-shell-${VERSION}`;
 const SHELL_FILES = [
   "/",
