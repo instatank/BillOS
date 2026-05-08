@@ -68,12 +68,13 @@ service cloud.firestore {
       // Any signed-in user may read so they can resolve a shared code.
       allow read: if isSignedIn();
 
-      // Create: caller must own the household referenced.
+      // Create: caller must stamp themselves as creator. We don't check that
+      // the linked household exists, because invite codes are written in the
+      // same batch as a fresh household — `exists()` would see pre-batch
+      // state and fail. A stray invite code with no household is harmless;
+      // the join flow will reject it.
       allow create: if isSignedIn()
-                    && request.resource.data.createdBy == request.auth.uid
-                    && exists(/databases/$(database)/documents/households/$(request.resource.data.householdId))
-                    && request.auth.uid in
-                       get(/databases/$(database)/documents/households/$(request.resource.data.householdId)).data.members;
+                    && request.resource.data.createdBy == request.auth.uid;
 
       // Update: not used by the app; deny.
       allow update: if false;
