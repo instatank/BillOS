@@ -67,6 +67,30 @@
 
   .center { display: flex; align-items: center; justify-content: center; min-height: 70vh; flex-direction: column; gap: var(--space-4); text-align: center; }
 
+  .stack { display: flex; flex-direction: column; gap: var(--space-3); }
+  .row   { display: flex; align-items: center; gap: var(--space-3); }
+
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--bg-elev-2); border: 1px solid var(--border);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 600; color: var(--text-dim); overflow: hidden;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .userline { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
+  .userline .name  { font-weight: 600; }
+  .userline .email { color: var(--text-dim); font-size: 13px; }
+
+  .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
+  .btn-ghost:hover { color: var(--text); background: var(--bg-elev-2); }
+
+  .banner {
+    background: rgba(239, 107, 107, 0.08); border: 1px solid rgba(239, 107, 107, 0.35);
+    color: var(--danger); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px;
+    text-align: left;
+  }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -74,7 +98,6 @@
 <div class="app">
   <header class="topbar">
     <div class="brand"><span class="dot"></span>BillOS</div>
-    <div id="userArea" class="small muted"></div>
   </header>
 
   <main id="view-loading" class="center">
@@ -82,17 +105,31 @@
   </main>
 
   <main id="view-signed-out" class="center hidden">
-    <div class="card" style="max-width: 360px;">
-      <h1 style="margin: 0 0 var(--space-2); font-size: 20px;">Welcome to BillOS</h1>
-      <p class="muted small" style="margin: 0 0 var(--space-4);">Your household's recurring outflows, in one calm place.</p>
+    <div class="card stack" style="max-width: 360px; width: 100%;">
+      <h1 style="margin: 0; font-size: 20px;">Welcome to BillOS</h1>
+      <p class="muted small" style="margin: 0;">Your household's recurring outflows, in one calm place.</p>
+      <div id="signInError" class="banner hidden"></div>
       <button id="btnSignIn" class="btn-primary" style="width: 100%;">Sign in with Google</button>
     </div>
   </main>
 
-  <main id="view-signed-in" class="center hidden">
-    <div class="card">
-      <div class="muted small">Signed in. Sub-task 2 (auth UI states) and beyond ship next.</div>
-    </div>
+  <main id="view-signed-in" class="hidden" style="padding-top: var(--space-3);">
+    <section class="card stack">
+      <div class="row" style="justify-content: space-between;">
+        <div class="row">
+          <div id="userAvatar" class="avatar"></div>
+          <div class="userline">
+            <span id="userName"  class="name">—</span>
+            <span id="userEmail" class="email">—</span>
+          </div>
+        </div>
+        <button id="btnSignOut" class="btn-ghost small">Sign out</button>
+      </div>
+    </section>
+
+    <section class="card stack" style="margin-top: var(--space-4);">
+      <div class="muted small">You're signed in. Household setup ships in sub-task 3 — for now this is your home.</div>
+    </section>
   </main>
 </div>
 
@@ -125,27 +162,78 @@
     signedOut:  document.getElementById("view-signed-out"),
     signedIn:   document.getElementById("view-signed-in"),
   };
-  const userArea = document.getElementById("userArea");
   function show(name) {
     Object.values(views).forEach(v => v.classList.add("hidden"));
     views[name].classList.remove("hidden");
   }
 
-  // -- Auth wiring (minimal — full sign-in/out UI in sub-task 2) --------
-  document.getElementById("btnSignIn").addEventListener("click", async () => {
-    const provider = new GoogleAuthProvider();
-    try { await signInWithPopup(auth, provider); }
-    catch (err) { console.error("[auth] sign-in failed", err); alert("Sign-in failed: " + err.message); }
+  // -- Auth: error surfacing -------------------------------------------
+  const signInBtn    = document.getElementById("btnSignIn");
+  const signInError  = document.getElementById("signInError");
+  function showSignInError(msg) {
+    if (!msg) { signInError.classList.add("hidden"); signInError.textContent = ""; return; }
+    signInError.textContent = msg;
+    signInError.classList.remove("hidden");
+  }
+  function friendlyAuthError(err) {
+    const code = err && err.code;
+    if (code === "auth/popup-closed-by-user")    return "Sign-in window was closed before finishing. Try again.";
+    if (code === "auth/popup-blocked")           return "Your browser blocked the sign-in window. Allow popups for this site and try again.";
+    if (code === "auth/cancelled-popup-request") return "Another sign-in is already in progress.";
+    if (code === "auth/network-request-failed")  return "You appear to be offline. Reconnect and try again.";
+    if (code === "auth/unauthorized-domain")     return "This domain isn't authorized in Firebase. Add it under Authentication → Settings → Authorized domains.";
+    return (err && err.message) ? err.message : "Sign-in failed. Please try again.";
+  }
+
+  // -- Sign in / sign out ----------------------------------------------
+  signInBtn.addEventListener("click", async () => {
+    showSignInError(null);
+    signInBtn.disabled = true;
+    const original = signInBtn.textContent;
+    signInBtn.textContent = "Signing in…";
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (err) {
+      console.error("[auth] sign-in failed", err);
+      showSignInError(friendlyAuthError(err));
+    } finally {
+      signInBtn.disabled = false;
+      signInBtn.textContent = original;
+    }
   });
 
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      userArea.textContent = user.displayName || user.email || "";
-      show("signedIn");
+  document.getElementById("btnSignOut").addEventListener("click", async () => {
+    try { await signOut(auth); }
+    catch (err) { console.error("[auth] sign-out failed", err); alert("Sign out failed. Please try again."); }
+  });
+
+  // -- Signed-in card population ---------------------------------------
+  const userAvatar = document.getElementById("userAvatar");
+  const userName   = document.getElementById("userName");
+  const userEmail  = document.getElementById("userEmail");
+
+  function renderUser(user) {
+    const name  = user.displayName || "";
+    const email = user.email || "";
+    userName.textContent  = name || email || "Signed in";
+    userEmail.textContent = (name && email) ? email : "";
+
+    userAvatar.innerHTML = "";
+    if (user.photoURL) {
+      const img = document.createElement("img");
+      img.src = user.photoURL;
+      img.alt = name || email || "avatar";
+      img.referrerPolicy = "no-referrer";
+      img.onerror = () => { userAvatar.textContent = (name || email || "?").charAt(0).toUpperCase(); };
+      userAvatar.appendChild(img);
     } else {
-      userArea.textContent = "";
-      show("signedOut");
+      userAvatar.textContent = (name || email || "?").charAt(0).toUpperCase();
     }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) { renderUser(user); show("signedIn"); }
+    else      { showSignInError(null); show("signedOut"); }
   });
 
   // -- Service worker ---------------------------------------------------
