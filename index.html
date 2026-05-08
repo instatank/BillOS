@@ -231,8 +231,67 @@
           <div class="muted small" style="text-align: center;">Share this with the second person. The code stops working once they join, or after 24 hours.</div>
         </section>
 
-        <section id="hh-bills" class="card stack">
-          <div class="muted small">Your bills will live here. Adding bills ships in sub-task 4.</div>
+        <section id="hh-bills" class="stack">
+
+          <div class="card stack">
+            <div class="row" style="justify-content: space-between;">
+              <h3 class="h-section-title" style="margin: 0;">Bills</h3>
+              <button id="btnToggleAddBill" class="btn-primary small">+ Add bill</button>
+            </div>
+
+            <form id="addBillForm" class="stack hidden" autocomplete="off">
+              <div id="addBillError" class="banner hidden"></div>
+
+              <div class="field">
+                <label class="label" for="billName">Name</label>
+                <input id="billName" type="text" maxlength="60" placeholder="e.g., Netflix, MTNL Broadband, Cook salary" required />
+              </div>
+
+              <div class="field-row">
+                <div class="field">
+                  <label class="label" for="billAmount">Amount (₹)</label>
+                  <input id="billAmount" type="number" inputmode="decimal" min="0" step="1" placeholder="0" required />
+                </div>
+                <div class="field">
+                  <label class="label" for="billFrequency">Frequency</label>
+                  <select id="billFrequency" required>
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                    <option value="one_time">One-time</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field">
+                  <label class="label" for="billCategory">Category</label>
+                  <select id="billCategory">
+                    <option value="utilities">Utilities</option>
+                    <option value="subscriptions">Subscriptions</option>
+                    <option value="credit_cards">Credit cards</option>
+                    <option value="people">People</option>
+                    <option value="other" selected>Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label class="label" for="billNextDue">Next due (optional)</label>
+                  <input id="billNextDue" type="date" />
+                </div>
+              </div>
+
+              <div class="row" style="gap: var(--space-2); margin-top: var(--space-2);">
+                <button type="button" id="btnCancelAddBill" class="btn-ghost" style="flex: 1;">Cancel</button>
+                <button type="submit" id="btnSaveBill" class="btn-primary" style="flex: 2;">Save bill</button>
+              </div>
+            </form>
+
+            <div id="addBillSaved" class="banner banner-info hidden">Bill saved. The full list view ships in sub-task 5.</div>
+
+            <div id="addBillEmpty" class="muted small" style="text-align: center;">No bills yet. Tap + Add bill to add your first one.</div>
+          </div>
+
         </section>
       </section>
 
@@ -664,6 +723,118 @@
         hhEls.btnShare.textContent = "Copied invite!";
         setTimeout(() => { hhEls.btnShare.textContent = original; }, 1500);
       } catch (_) {}
+    }
+  });
+
+  // -- Bills: add bill form -------------------------------------------
+  const billEls = {
+    toggle:    document.getElementById("btnToggleAddBill"),
+    cancel:    document.getElementById("btnCancelAddBill"),
+    form:      document.getElementById("addBillForm"),
+    error:     document.getElementById("addBillError"),
+    saved:     document.getElementById("addBillSaved"),
+    empty:     document.getElementById("addBillEmpty"),
+    name:      document.getElementById("billName"),
+    amount:    document.getElementById("billAmount"),
+    frequency: document.getElementById("billFrequency"),
+    category:  document.getElementById("billCategory"),
+    nextDue:   document.getElementById("billNextDue"),
+    save:      document.getElementById("btnSaveBill"),
+  };
+  let savedBillTimer = null;
+
+  function showBillError(msg) {
+    if (!msg) { billEls.error.classList.add("hidden"); billEls.error.textContent = ""; return; }
+    billEls.error.textContent = msg;
+    billEls.error.classList.remove("hidden");
+  }
+  function flashSavedBill() {
+    billEls.saved.classList.remove("hidden");
+    if (savedBillTimer) clearTimeout(savedBillTimer);
+    savedBillTimer = setTimeout(() => billEls.saved.classList.add("hidden"), 3000);
+  }
+  function openAddBill() {
+    showBillError(null);
+    billEls.form.classList.remove("hidden");
+    billEls.empty.classList.add("hidden");
+    billEls.toggle.classList.add("hidden");
+    setTimeout(() => billEls.name.focus(), 0);
+  }
+  function closeAddBill() {
+    billEls.form.classList.add("hidden");
+    billEls.toggle.classList.remove("hidden");
+    billEls.empty.classList.remove("hidden");
+    showBillError(null);
+    billEls.form.reset();
+    billEls.category.value = "other";
+    billEls.frequency.value = "monthly";
+  }
+
+  billEls.toggle.addEventListener("click", openAddBill);
+  billEls.cancel.addEventListener("click", closeAddBill);
+
+  billEls.form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    showBillError(null);
+    const user = auth.currentUser;
+    if (!user || !currentHouseholdId) {
+      showBillError("You need to be in a household to add bills.");
+      return;
+    }
+
+    const name = billEls.name.value.trim();
+    if (!name) { showBillError("Give the bill a name."); billEls.name.focus(); return; }
+
+    const amountRaw = billEls.amount.value;
+    const amount = Number(amountRaw);
+    if (!amountRaw || !isFinite(amount) || amount < 0) {
+      showBillError("Enter a valid amount in rupees."); billEls.amount.focus(); return;
+    }
+
+    const frequency = billEls.frequency.value;
+    if (!["weekly","monthly","quarterly","yearly","one_time"].includes(frequency)) {
+      showBillError("Pick a frequency."); return;
+    }
+    const category = billEls.category.value;
+    if (!["utilities","subscriptions","credit_cards","people","other"].includes(category)) {
+      showBillError("Pick a category."); return;
+    }
+
+    let nextDue = null;
+    if (billEls.nextDue.value) {
+      // Treat the date input as a local calendar date in IST. Anchor at 09:00 IST so
+      // a "today" choice stays today regardless of viewer timezone shifts.
+      const [y, m, d] = billEls.nextDue.value.split("-").map(Number);
+      // 09:00 IST == 03:30 UTC same day (IST = UTC+5:30).
+      const ms = Date.UTC(y, m - 1, d, 3, 30);
+      nextDue = Timestamp.fromMillis(ms);
+    }
+
+    billEls.save.disabled = true;
+    billEls.save.textContent = "Saving…";
+    try {
+      const billRef = doc(collection(db, "households", currentHouseholdId, "bills"));
+      await setDoc(billRef, {
+        name,
+        amount,
+        frequency,
+        category,
+        owner: "shared",
+        nextDue,
+        status: "active",
+        notes: null,
+        createdAt: serverTimestamp(),
+        createdBy: user.uid,
+        updatedAt: serverTimestamp(),
+      });
+      closeAddBill();
+      flashSavedBill();
+    } catch (err) {
+      console.error("[bills] save failed", err);
+      showBillError("Couldn't save the bill: " + (err.message || err.code));
+    } finally {
+      billEls.save.disabled = false;
+      billEls.save.textContent = "Save bill";
     }
   });
 
