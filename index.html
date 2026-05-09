@@ -828,6 +828,13 @@
     font-weight: 600;
   }
 
+  /* Slim divider between summary card and bills feed */
+  .feed-divider {
+    height: 0; border: 0;
+    border-top: 1px solid var(--border-soft);
+    margin: 0 16px;
+  }
+
   /* Recently paid section (bottom of bills home) */
   .recent-section { padding: 28px 16px 30px; }
   .recent-header {
@@ -1154,6 +1161,7 @@
       <div id="monthSummaryLegend" class="month-summary-legend"></div>
     </section>
 
+    <hr class="feed-divider" />
     <div id="feed" class="feed"></div>
 
     <section id="recentSection" class="recent-section hidden">
