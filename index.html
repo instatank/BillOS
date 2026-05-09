@@ -1361,6 +1361,7 @@
     signInWithPopup, signOut, browserLocalPersistence, setPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
+    initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
     getFirestore, collection, doc, getDoc, setDoc, deleteDoc, updateDoc,
     query, where, orderBy, onSnapshot, runTransaction, serverTimestamp,
     Timestamp, writeBatch
@@ -1377,7 +1378,30 @@
 
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  const db   = getFirestore(app);
+
+  // Persistent local cache + multi-tab manager.
+  //
+  // Why this matters for sync:
+  //   - Writes queue locally when offline; sync auto-resumes when back online.
+  //   - onSnapshot fires from cache instantly on load, then again from server
+  //     once the round-trip completes — same UX as DayOS's "fast path → settle".
+  //   - snapshot.metadata.hasPendingWrites tells us whether a local change has
+  //     reached the server yet, so we never need a hand-rolled _synced flag.
+  //   - Multi-tab manager keeps two open tabs of the same household consistent
+  //     with each other (e.g. PWA + desktop browser at the same time).
+  // Falls back to memory cache if IndexedDB is unavailable (private mode,
+  // disabled storage, etc.) — getFirestore() returns the existing instance.
+  let db;
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+    console.log('[firestore] persistent multi-tab cache enabled');
+  } catch (err) {
+    console.warn('[firestore] persistence unavailable, using memory cache', err);
+    db = getFirestore(app);
+  }
+
   await setPersistence(auth, browserLocalPersistence);
 
   // ───────────────────────────────────────────────────────────────────
@@ -1455,6 +1479,15 @@
     // Anchor at 09:00 IST so day stays stable across timezones.
     const ms = Date.UTC(y, m - 1, d, 3, 30);
     return Timestamp.fromMillis(ms);
+  }
+
+  // Stamp every collaborative write with who-and-when. Cheap upfront, painful
+  // to retrofit (lesson #13). Used on every bill mutation.
+  function auditMeta() {
+    return {
+      updatedAt: serverTimestamp(),
+      lastModifiedBy: currentUser?.uid || null,
+    };
   }
 
   function categoryIcon(cat) {
@@ -2299,6 +2332,10 @@
       owner:      prefill?.owner || 'shared',
       nextDueYMD: prefill?.nextDue ? ymdLocalIST(dateFromBill(prefill.nextDue)) : '',
     };
+    // Snapshot original values for field-level diffing at submit, so two
+    // people editing different fields concurrently don't clobber each
+    // other (lesson #9). Only used in edit mode; null for new bills.
+    abState.orig = editingBillId ? { ...abState } : null;
     ab.title.textContent = editingBillId ? 'Edit bill' : 'New bill';
     ab.submit.textContent = editingBillId ? 'Update bill' : 'Save bill';
     abPaint();
@@ -2330,27 +2367,47 @@
     const original = ab.submit.textContent;
     ab.submit.textContent = 'Saving…';
 
-    const payload = {
-      name:    abState.name.trim(),
-      amount:  Number(abState.amount),
-      freq:    abState.freq,
-      cat:     abState.cat,
-      owner:   abState.owner,
-      nextDue: timestampFromYMD(abState.nextDueYMD),
-      updatedAt: serverTimestamp(),
-    };
-
     try {
       if (editingBillId) {
-        await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', editingBillId), payload);
+        // Edit: send ONLY fields the user actually changed (field-level
+        // diff). If two people edit different fields concurrently, neither
+        // overwrites the other's untouched fields (lesson #9).
+        const orig = abState.orig || {};
+        const patch = auditMeta();
+        const newName = abState.name.trim();
+        const newAmt  = Number(abState.amount);
+        if (newName            !== orig.name)       patch.name    = newName;
+        if (newAmt             !== Number(orig.amount || 0)) patch.amount  = newAmt;
+        if (abState.freq       !== orig.freq)       patch.freq    = abState.freq;
+        if (abState.cat        !== orig.cat)        patch.cat     = abState.cat;
+        if (abState.owner      !== orig.owner)      patch.owner   = abState.owner;
+        if ((abState.nextDueYMD || '') !== (orig.nextDueYMD || '')) {
+          patch.nextDue = timestampFromYMD(abState.nextDueYMD);
+        }
+        // If only audit fields are present, the user opened Edit and
+        // saved without changing anything — skip the write entirely.
+        const meaningfulKeys = Object.keys(patch).filter(k => k !== 'updatedAt' && k !== 'lastModifiedBy');
+        if (meaningfulKeys.length === 0) {
+          console.log('[bills] edit had no changes, skipping write');
+          closeAddBill();
+          return;
+        }
+        console.log('[bills] edit patch (changed fields only)', meaningfulKeys);
+        await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', editingBillId), patch);
       } else {
         const newRef = doc(collection(db, 'households', currentHouseholdId, 'bills'));
         await setDoc(newRef, {
-          ...payload,
+          name:    abState.name.trim(),
+          amount:  Number(abState.amount),
+          freq:    abState.freq,
+          cat:     abState.cat,
+          owner:   abState.owner,
+          nextDue: timestampFromYMD(abState.nextDueYMD),
           status:    'active',
           notes:     null,
           createdAt: serverTimestamp(),
           createdBy: currentUser.uid,
+          ...auditMeta(),
         });
       }
       closeAddBill();
@@ -2478,7 +2535,7 @@
     if (!b || !currentHouseholdId) return;
     try {
       await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', b.id), {
-        ...patch, updatedAt: serverTimestamp(),
+        ...patch, ...auditMeta(),
       });
     } catch (err) {
       console.error('[bills] update failed', err);
@@ -2647,69 +2704,97 @@
 
     const paidTs = timestampFromYMD(payState.paidYMD) || Timestamp.now();
     const noteTrim = (payState.note || '').trim() || null;
-
-    const patch = {
-      lastPaidAt: paidTs,
-      lastPaidNote: noteTrim,
-      lastPaidAmount: payState.amount,
-      updatedAt: serverTimestamp(),
-    };
-
-    if (payState.isOneTime) {
-      if (payState.oneTimeAction === 'remove') patch.status = 'cancelled';
-    } else {
-      // Periodic — advance nextDue, and reactivate if paused (paying resumes the bill)
-      const newNext = advanceNextDue(payState.currentNextDue, payState.freq);
-      if (newNext) patch.nextDue = Timestamp.fromMillis(Date.UTC(newNext.getFullYear(), newNext.getMonth(), newNext.getDate(), 3, 30));
-      if (bill.status === 'paused') patch.status = 'active';
-    }
-
-    // Snapshot the fields we're about to overwrite so an Undo can restore
-    // them exactly. Missing fields are written back as null (Firestore
-    // treats null as "field present and empty"; updateDoc with these will
-    // clear the lastPaid* fields, which is what we want post-undo).
-    const prevState = {
-      lastPaidAt:     bill.lastPaidAt     ?? null,
-      lastPaidNote:   bill.lastPaidNote   ?? null,
-      lastPaidAmount: bill.lastPaidAmount ?? null,
-      nextDue:        bill.nextDue        ?? null,
-      status:         bill.status         || 'active',
-    };
     const billName = bill.name || 'Bill';
-    // Capture intent now — payState gets cleared inside closePayBill()
     const wasOneTime    = payState.isOneTime;
     const oneTimeAction = payState.oneTimeAction;
+    const freq          = payState.freq;
+    const amount        = payState.amount;
+    const ref = doc(db, 'households', currentHouseholdId, 'bills', bill.id);
 
-    console.log('[pay] submit start', { hh: currentHouseholdId, billId: bill.id, patch });
+    // Use a transaction so we read the FRESH bill state and compute the
+    // patch from that, not from the snapshot the user loaded. Closes the
+    // race where Alice cancels the bill while Bob is filling out the pay
+    // sheet — Bob's submit must respect Alice's cancel, not silently
+    // resurrect it (lesson #12).
+    let snappedPrev = null; // captured inside tx, used by Undo
+    let computedNextDue = null;
+
+    console.log('[pay] submit start (tx)', { hh: currentHouseholdId, billId: bill.id });
 
     try {
-      const ref = doc(db, 'households', currentHouseholdId, 'bills', bill.id);
-      const writePromise = updateDoc(ref, patch);
+      const txPromise = runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error("This bill no longer exists.");
+        const fresh = snap.data();
+
+        if (fresh.status === 'cancelled') {
+          throw new Error("This bill was cancelled by another member. Reactivate it before marking paid.");
+        }
+
+        // Snapshot pre-write state for Undo, from FRESH server state.
+        snappedPrev = {
+          lastPaidAt:     fresh.lastPaidAt     ?? null,
+          lastPaidNote:   fresh.lastPaidNote   ?? null,
+          lastPaidAmount: fresh.lastPaidAmount ?? null,
+          nextDue:        fresh.nextDue        ?? null,
+          status:         fresh.status         || 'active',
+        };
+
+        const patch = {
+          lastPaidAt: paidTs,
+          lastPaidNote: noteTrim,
+          lastPaidAmount: amount,
+          ...auditMeta(),
+        };
+
+        if (wasOneTime) {
+          if (oneTimeAction === 'remove') patch.status = 'cancelled';
+        } else {
+          // Advance nextDue from FRESH server nextDue (not the stale value
+          // the user loaded into the modal). If Alice already marked paid
+          // and rolled May → June, Bob's submit advances June → July, not
+          // May → June again.
+          const freshNextDate = fresh.nextDue && typeof fresh.nextDue.toDate === 'function'
+            ? fresh.nextDue.toDate()
+            : null;
+          const newNext = freshNextDate ? advanceNextDue(freshNextDate, freq) : null;
+          if (newNext) {
+            const ts = Timestamp.fromMillis(Date.UTC(newNext.getFullYear(), newNext.getMonth(), newNext.getDate(), 3, 30));
+            patch.nextDue = ts;
+            computedNextDue = newNext;
+          }
+          // Resume bill if it was paused on the server right now (not when
+          // the user opened the modal).
+          if (fresh.status === 'paused') patch.status = 'active';
+        }
+
+        tx.update(ref, patch);
+      });
+
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Timed out after 15s — check your connection')), 15000)
       );
-      await Promise.race([writePromise, timeout]);
-      console.log('[pay] updateDoc resolved');
+      await Promise.race([txPromise, timeout]);
+      console.log('[pay] transaction committed');
       closePayBill();
-      // Also close the detail modal so the user lands back on the bills feed
-      // and clearly sees the bill move (next due advanced, or removed).
       if (!dt.modal.hidden) closeDetail();
 
-      // Confirmation toast with Undo. Message reflects what actually happened.
       let msg;
       if (wasOneTime) {
         msg = oneTimeAction === 'remove'
           ? `${billName} marked paid · removed from list`
           : `${billName} marked paid`;
       } else {
-        const newNext = patch.nextDue ? patch.nextDue.toDate() : null;
-        msg = newNext
-          ? `${billName} paid · next due ${fmtDate(newNext)}`
+        msg = computedNextDue
+          ? `${billName} paid · next due ${fmtDate(computedNextDue)}`
           : `${billName} marked paid`;
       }
       showToast(msg, {
         undo: async () => {
-          await updateDoc(ref, { ...prevState, updatedAt: serverTimestamp() });
+          // Best-effort restore. If a remote change has happened since,
+          // this overwrites it — acceptable for a 5-second-window undo
+          // in a 2-member household.
+          await updateDoc(ref, { ...snappedPrev, ...auditMeta() });
         },
       });
     } catch (err) {

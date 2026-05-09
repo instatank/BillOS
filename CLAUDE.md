@@ -8,6 +8,7 @@ The product was previously named BillOS. References to that name in the historic
 - `PRODUCT_BUILD_SOP.md` — build philosophy, mistakes-to-avoid, decision principles
 - `BillOS_PRD.md` — V1 product vision and scope
 - `BillOS_MVP_Shell_Prompt.md` — Phase 3 build plan (the 7 sub-tasks)
+- `SYNC.md` — sync model, concurrency rules, cross-user test gate. Read before touching any bill write.
 
 ## Stack (locked for MVP Shell)
 - Single `index.html` with inline CSS/JS — no build step, no frameworks
