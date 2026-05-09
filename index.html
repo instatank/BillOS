@@ -759,6 +759,65 @@
   .menu-divider { height: 1px; background: var(--border-soft); margin: 4px 6px; }
   .menu-section { padding: 6px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
+  /* Month summary card (top of bills feed) */
+  .month-summary {
+    margin: 4px 12px 8px;
+    padding: 14px 16px;
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-card);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .month-summary-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  }
+  .month-summary-label {
+    font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .month-summary-month {
+    font-size: 12px; color: var(--text-muted); font-weight: 500;
+  }
+  .month-summary-amount-row {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  }
+  .month-summary-amount {
+    font-family: var(--font-num); font-weight: 700; font-size: 28px;
+    letter-spacing: -0.4px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .month-summary-amount .sym { opacity: 0.6; margin-right: 2px; }
+  .month-summary-count {
+    font-size: 13px; color: var(--text-dim);
+  }
+  .month-summary-bar {
+    display: flex; align-items: stretch;
+    height: 8px; border-radius: 4px; overflow: hidden;
+    background: var(--bg-elev-2);
+    gap: 2px;
+  }
+  .month-summary-bar-seg {
+    height: 100%;
+    transition: width .25s ease;
+    min-width: 2px;
+  }
+  .month-summary-legend {
+    display: flex; flex-wrap: wrap; gap: 10px 14px;
+    font-size: 11.5px; color: var(--text-dim);
+  }
+  .month-summary-legend-item {
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .month-summary-legend-item .swatch {
+    width: 8px; height: 8px; border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .month-summary-legend-item .amt {
+    font-variant-numeric: tabular-nums; color: var(--text);
+    font-weight: 600;
+  }
+
   /* Recently paid section (bottom of bills home) */
   .recent-section { padding: 28px 16px 30px; }
   .recent-header {
@@ -1071,6 +1130,19 @@
         </button>
       </div>
     </div>
+
+    <section id="monthSummary" class="month-summary hidden" aria-label="This month's payments">
+      <div class="month-summary-head">
+        <span class="month-summary-label">Paid this month</span>
+        <span id="monthSummaryMonth" class="month-summary-month"></span>
+      </div>
+      <div class="month-summary-amount-row">
+        <span id="monthSummaryAmount" class="month-summary-amount"></span>
+        <span id="monthSummaryCount" class="month-summary-count"></span>
+      </div>
+      <div id="monthSummaryBar" class="month-summary-bar" role="img" aria-label="Category breakdown"></div>
+      <div id="monthSummaryLegend" class="month-summary-legend"></div>
+    </section>
 
     <div id="feed" class="feed"></div>
 
@@ -1949,10 +2021,83 @@
       visible.forEach(b => feed.appendChild(billCardEl(b)));
     }
 
+    renderMonthSummary();
     renderRecent();
 
     // Re-paint open detail modal if its bill changed
     if (activeDetailBillId && !dt.modal.hidden) paintDetail();
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Month summary (top of bills feed)
+  // Sums payments whose lastPaidAt falls in the current local-IST month.
+  // Stacked color bar shows the per-category breakdown; a legend below
+  // lists each category's exact total. Respects the chip + search so
+  // it stays consistent with the feed and recent sections.
+  // ───────────────────────────────────────────────────────────────────
+  const summaryEl       = $('monthSummary');
+  const summaryAmountEl = $('monthSummaryAmount');
+  const summaryCountEl  = $('monthSummaryCount');
+  const summaryMonthEl  = $('monthSummaryMonth');
+  const summaryBarEl    = $('monthSummaryBar');
+  const summaryLegendEl = $('monthSummaryLegend');
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function renderMonthSummary() {
+    const now = new Date();
+    const m = now.getMonth();
+    const y = now.getFullYear();
+
+    const paidThisMonth = applyFilter(
+      bills.filter(b => {
+        const d = dateFromBill(b.lastPaidAt);
+        return d && d.getMonth() === m && d.getFullYear() === y;
+      })
+    );
+
+    if (paidThisMonth.length === 0) {
+      summaryEl.classList.add('hidden');
+      return;
+    }
+    summaryEl.classList.remove('hidden');
+
+    // Bucket by category, sum amounts
+    const byCat = {};
+    let total = 0;
+    paidThisMonth.forEach(b => {
+      const cat = b.cat || b.category || 'other';
+      const amt = Number(b.lastPaidAmount != null ? b.lastPaidAmount : b.amount) || 0;
+      byCat[cat] = (byCat[cat] || 0) + amt;
+      total += amt;
+    });
+
+    summaryAmountEl.innerHTML = `<span class="sym">₹</span>${indianGroup(total)}`;
+    summaryCountEl.textContent = `across ${paidThisMonth.length} ${paidThisMonth.length === 1 ? 'bill' : 'bills'}`;
+    summaryMonthEl.textContent = `${MONTH_NAMES[m]} ${y}`;
+
+    // Stacked bar — one segment per category that has spending, in CAT_ORDER
+    summaryBarEl.innerHTML = '';
+    summaryLegendEl.innerHTML = '';
+    CAT_ORDER.forEach(c => {
+      const amt = byCat[c];
+      if (!amt) return;
+      const seg = document.createElement('div');
+      seg.className = 'month-summary-bar-seg';
+      seg.style.width = `${(amt / total) * 100}%`;
+      seg.style.background = `var(--cat-${c})`;
+      seg.title = `${CATEGORIES[c].label}: ${fmtINR(amt)}`;
+      summaryBarEl.appendChild(seg);
+
+      const item = document.createElement('span');
+      item.className = 'month-summary-legend-item';
+      item.innerHTML = `
+        <span class="swatch" style="background: var(--cat-${c});"></span>
+        <span>${CATEGORIES[c].label}</span>
+        <span class="amt">${fmtINR(amt)}</span>
+      `;
+      summaryLegendEl.appendChild(item);
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────
