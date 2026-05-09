@@ -2276,6 +2276,9 @@
     };
 
     showPayError(null);
+    // Reset submit button so a previous run's "Saving…" state never sticks
+    pay.submit.disabled = false;
+    pay.submit.textContent = 'Mark paid';
     pay.name.textContent = bill.name || 'Untitled';
     pay.amount.innerHTML = `<span class="sym">₹</span>${indianGroup(payState.amount)}`;
     pay.date.value = todayYMD;
@@ -2345,6 +2348,9 @@
       await Promise.race([writePromise, timeout]);
       console.log('[pay] updateDoc resolved');
       closePayBill();
+      // Also close the detail modal so the user lands back on the bills feed
+      // and clearly sees the bill move (next due advanced, or removed).
+      if (!dt.modal.hidden) closeDetail();
     } catch (err) {
       console.error('[bills] mark paid failed', err);
       showPayError("Couldn't record payment: " + (err.message || err.code || String(err)));
