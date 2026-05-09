@@ -1,6 +1,8 @@
-# CLAUDE.md — BillOS
+# CLAUDE.md — BillBud
 
 Project context for Claude Code sessions. Source of truth for *how* we build, not *what* we build (that's the PRD).
+
+The product was previously named BillOS. References to that name in the historical product docs (`BillOS_PRD.md`, `BillOS_MVP_Shell_Prompt.md`) and reference design files (`billos-*.jsx`) have not been renamed — they're frozen artefacts.
 
 ## Read-first
 - `PRODUCT_BUILD_SOP.md` — build philosophy, mistakes-to-avoid, decision principles

@@ -7,13 +7,13 @@
 <meta name="theme-color" content="#f4f6ed" media="(prefers-color-scheme: light)" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="BillOS" />
+<meta name="apple-mobile-web-app-title" content="BillBud" />
 <link rel="manifest" href="/manifest.json" />
 <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<title>BillOS</title>
+<title>BillBud</title>
 <style>
   /* ─── Tokens — Stack · Light (default) ─────────────────────────── */
   :root {
@@ -711,7 +711,7 @@
     <div class="hero">
       <div class="hero-content">
         <div class="mark mark-lg">₹</div>
-        <div class="hero-title">BillOS</div>
+        <div class="hero-title">BillBud</div>
         <div class="hero-tagline">Your household's recurring outflows, in one calm place.</div>
 
         <div class="hero-preview">
@@ -866,7 +866,7 @@
   <main id="view-stack" class="hidden">
     <div class="stack-header">
       <div class="stack-title-block">
-        <div class="stack-title">Stack</div>
+        <div class="stack-title">Bills</div>
         <div id="stackSubstat" class="stack-substat">— bills · ₹0 this cycle</div>
       </div>
       <div class="stack-header-actions">
@@ -1403,9 +1403,9 @@
   async function doShareCode() {
     if (!currentHousehold || !currentHousehold.inviteCode) return;
     const code = currentHousehold.inviteCode;
-    const text = `Join our BillOS household with code ${code} (expires in 24h).`;
+    const text = `Join our BillBud household with code ${code} (expires in 24h).`;
     if (navigator.share) {
-      try { await navigator.share({ title: 'BillOS invite', text }); } catch (_) {}
+      try { await navigator.share({ title: 'BillBud invite', text }); } catch (_) {}
     } else {
       try { await navigator.clipboard.writeText(text); } catch (_) {}
     }

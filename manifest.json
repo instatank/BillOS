@@ -1,6 +1,6 @@
 {
-  "name": "BillOS",
-  "short_name": "BillOS",
+  "name": "BillBud",
+  "short_name": "BillBud",
   "description": "Household bill tracker for recurring outflows.",
   "start_url": "/",
   "scope": "/",
