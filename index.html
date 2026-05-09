@@ -759,6 +759,51 @@
   .menu-divider { height: 1px; background: var(--border-soft); margin: 4px 6px; }
   .menu-section { padding: 6px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
+  /* Recently paid section (bottom of bills home) */
+  .recent-section { padding: 28px 16px 30px; }
+  .recent-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 10px; padding: 0 4px;
+  }
+  .recent-title {
+    font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .recent-toggle {
+    background: transparent; border: 0; color: var(--accent);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    padding: 4px 6px; border-radius: 6px; min-height: 28px;
+  }
+  .recent-toggle:hover { background: var(--bg-elev-2); }
+  .recent-list { display: flex; flex-direction: column; gap: 6px; }
+  .recent-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px;
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    min-height: 38px;
+    transition: background .12s, border-color .12s;
+  }
+  .recent-row:hover { background: var(--bg-elev-2); border-color: var(--border); }
+  .recent-row .cat-dot { flex-shrink: 0; }
+  .recent-name {
+    flex: 1; min-width: 0;
+    font-size: 13.5px; font-weight: 500; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .recent-name.is-removed { color: var(--text-dim); text-decoration: line-through; }
+  .recent-amount {
+    font-family: var(--font-num); font-weight: 600; font-size: 13px;
+    color: var(--text-dim); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .recent-date {
+    font-size: 12px; color: var(--text-muted); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Toast — bottom-anchored confirmation with optional undo */
   .toast {
     position: fixed; left: 50%;
@@ -1028,6 +1073,14 @@
     </div>
 
     <div id="feed" class="feed"></div>
+
+    <section id="recentSection" class="recent-section hidden">
+      <div class="recent-header">
+        <span class="recent-title">Recently paid</span>
+        <button id="recentToggle" class="recent-toggle hidden" type="button">Show all</button>
+      </div>
+      <div id="recentList" class="recent-list"></div>
+    </section>
   </main>
 </div>
 
@@ -1896,8 +1949,72 @@
       visible.forEach(b => feed.appendChild(billCardEl(b)));
     }
 
+    renderRecent();
+
     // Re-paint open detail modal if its bill changed
     if (activeDetailBillId && !dt.modal.hidden) paintDetail();
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Recently paid section (bottom of bills home)
+  // Shows last 3 by default, expandable to all. Respects current filter
+  // chip + search query so it stays consistent with the feed above.
+  // Includes cancelled bills (one-time + remove leaves status=cancelled
+  // but keeps lastPaidAt set — they belong in "Recently paid" history).
+  // ───────────────────────────────────────────────────────────────────
+  let recentExpanded = false;
+  const recentSectionEl = $('recentSection');
+  const recentListEl    = $('recentList');
+  const recentToggleEl  = $('recentToggle');
+
+  recentToggleEl.addEventListener('click', () => {
+    recentExpanded = !recentExpanded;
+    renderRecent();
+  });
+
+  function renderRecent() {
+    const paid = applyFilter(bills.filter(b => b.lastPaidAt))
+      .sort((a, b) => {
+        const ta = (dateFromBill(a.lastPaidAt) || new Date(0)).getTime();
+        const tb = (dateFromBill(b.lastPaidAt) || new Date(0)).getTime();
+        return tb - ta;
+      });
+
+    if (paid.length === 0) {
+      recentSectionEl.classList.add('hidden');
+      return;
+    }
+    recentSectionEl.classList.remove('hidden');
+
+    const display = recentExpanded ? paid : paid.slice(0, 3);
+    recentListEl.innerHTML = '';
+    display.forEach(b => recentListEl.appendChild(recentRowEl(b)));
+
+    if (paid.length > 3) {
+      recentToggleEl.classList.remove('hidden');
+      recentToggleEl.textContent = recentExpanded ? 'Show less' : `Show all (${paid.length})`;
+    } else {
+      recentToggleEl.classList.add('hidden');
+    }
+  }
+
+  function recentRowEl(b) {
+    const cat = b.cat || b.category || 'other';
+    const paidDate = dateFromBill(b.lastPaidAt);
+    const dateLabel = paidDate ? fmtDate(paidDate) : '—';
+    const amount = b.lastPaidAmount != null ? b.lastPaidAmount : b.amount;
+    const removed = b.status === 'cancelled';
+
+    const row = document.createElement('div');
+    row.className = 'recent-row';
+    row.innerHTML = `
+      <span class="cat-dot cat-${cat}"></span>
+      <span class="recent-name${removed ? ' is-removed' : ''}">${escapeHtml(b.name || 'Untitled')}</span>
+      <span class="recent-amount">${fmtINR(amount || 0)}</span>
+      <span class="recent-date">${escapeHtml(dateLabel)}</span>
+    `;
+    row.addEventListener('click', () => openDetail(b.id));
+    return row;
   }
 
   function billCardEl(b) {
@@ -2497,6 +2614,7 @@
       currentHouseholdId = null; currentHousehold = null; bills = [];
       onboardingMode = null;
       activeFilter = 'all';
+      recentExpanded = false;
       closeSearchBar();
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
       if (!dt.modal.hidden) closeModal(dt.overlay, dt.modal);
