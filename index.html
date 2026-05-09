@@ -338,15 +338,41 @@
   .stack-substat { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
   .stack-header-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
-  /* ─── Filter chip strip ───────────────────────────────────────── */
+  /* ─── Search row + filter chip strip ──────────────────────────── */
+  .search-row {
+    position: relative;
+    padding: 10px 16px;
+    box-sizing: border-box;
+  }
+  .search-row-inner {
+    display: flex; align-items: center; gap: 8px;
+    height: 40px;
+  }
+  .search-icon-btn {
+    flex-shrink: 0;
+    width: 40px; height: 40px; padding: 0;
+    border-radius: 999px;
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .search-icon-btn:hover { background: var(--bg-elev-2); color: var(--text); }
+  .search-icon-btn:active { opacity: 0.7; }
+
   .chip-strip {
-    padding: 12px 0; overflow-x: auto; overflow-y: hidden;
+    flex: 1; min-width: 0;
+    overflow-x: auto; overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    display: flex; align-items: center;
+    height: 100%;
   }
   .chip-strip::-webkit-scrollbar { display: none; }
   .chip-strip-inner {
-    display: inline-flex; gap: 8px; padding: 0 16px; white-space: nowrap;
+    display: inline-flex; gap: 8px; white-space: nowrap; padding-right: 8px;
   }
   .chip {
     padding: 7px 14px; border-radius: 999px;
@@ -358,6 +384,45 @@
   .chip.active {
     background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   }
+
+  /* Search overlay: always mounted, opacity-toggled.
+     Synchronous focus on open keeps the mobile soft keyboard popping. */
+  .search-overlay {
+    position: absolute;
+    top: 10px; bottom: 10px; left: 16px; right: 16px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0 12px 0 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .14s ease;
+  }
+  .search-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .search-overlay input {
+    flex: 1; min-width: 0;
+    background: transparent; border: 0; outline: 0;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 10px 0;
+  }
+  .search-overlay input::placeholder { color: var(--text-muted); }
+  .search-close {
+    flex-shrink: 0;
+    width: 28px; height: 28px; padding: 0;
+    border: 0; background: transparent;
+    color: var(--text-muted);
+    border-radius: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: color .12s, background .12s;
+  }
+  .search-close:hover { color: var(--text); background: var(--bg-elev-2); }
 
   /* ─── Bill cards (Stack feed) ─────────────────────────────────── */
   .feed { padding: 4px 12px 30px; display: flex; flex-direction: column; gap: 10px; }
@@ -887,8 +952,32 @@
       </div>
     </div>
 
-    <div class="chip-strip">
-      <div id="chipStripInner" class="chip-strip-inner"></div>
+    <div class="search-row">
+      <!-- Layer 1: search icon + chip strip -->
+      <div class="search-row-inner">
+        <button id="btnSearch" class="search-icon-btn" aria-label="Search bills" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6"/>
+            <path d="M16 16l4 4"/>
+          </svg>
+        </button>
+        <div class="chip-strip">
+          <div id="chipStripInner" class="chip-strip-inner"></div>
+        </div>
+      </div>
+      <!-- Layer 2: search overlay (always mounted, opacity-toggled) -->
+      <div id="searchOverlay" class="search-overlay" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); flex-shrink: 0;" aria-hidden="true">
+          <circle cx="11" cy="11" r="6"/>
+          <path d="M16 16l4 4"/>
+        </svg>
+        <input id="searchInput" type="text" placeholder="Search bills…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+        <button id="btnSearchClose" class="search-close" aria-label="Close search" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 5l14 14M19 5L5 19"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div id="feed" class="feed"></div>
@@ -1162,6 +1251,8 @@
   let inviteTicker = null;
   let onboardingMode = null; // 'choice' | 'created' | 'join' — overrides default routing post-create
   let activeFilter = 'all';
+  let searchQuery = '';
+  let searchOpen = false;
   let editingBillId = null;
   let activeDetailBillId = null;
 
@@ -1550,7 +1641,7 @@
   function applyFilter(list) {
     const me = currentUser?.uid;
     const otherUid = otherMemberUid();
-    return list.filter(b => {
+    const filtered = list.filter(b => {
       if (activeFilter === 'all') return true;
       if (activeFilter === 'mine')   return b.owner === me;
       if (activeFilter === 'shared') return b.owner === 'shared';
@@ -1558,6 +1649,19 @@
       // category filters
       const cat = b.cat || b.category;
       return cat === activeFilter;
+    });
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return filtered;
+    return filtered.filter(b => {
+      const cat = b.cat || b.category || 'other';
+      const haystack = [
+        b.name || '',
+        CATEGORIES[cat]?.label || '',
+        b.notes || '',
+        b.owner === 'shared' ? 'shared' : memberLabel(b.owner),
+        String(b.amount || ''),
+      ].join(' ').toLowerCase();
+      return haystack.includes(q);
     });
   }
 
@@ -1581,6 +1685,64 @@
     if (!pop.contains(ev.target) && ev.target !== $('btnMenu')) pop.classList.remove('open');
   });
   $('menuSignOut').addEventListener('click', doSignOut);
+
+  // ───────────────────────────────────────────────────────────────────
+  // Search (icon → expand-to-input overlay)
+  //
+  // Three rules from the dayOS / partyspark implementation:
+  //  1. Input is always mounted; opacity-toggled when closed. Lets us
+  //     call .focus() synchronously inside the tap that opens — the
+  //     only way mobile Safari/Chrome will pop the soft keyboard.
+  //  2. Outside-click handler is attached via setTimeout(0) so the same
+  //     tap that opens doesn't immediately close. Capture phase so it
+  //     beats other handlers.
+  //  3. Exempt-list (closest selector) — taps on the overlay itself,
+  //     filter chips, and bill cards do their own work without
+  //     collapsing search.
+  // ───────────────────────────────────────────────────────────────────
+  const searchOverlayEl = $('searchOverlay');
+  const searchInputEl   = $('searchInput');
+
+  function openSearchBar() {
+    if (searchOpen) return;
+    // Synchronous focus BEFORE state change — required for mobile keyboard
+    searchInputEl.focus();
+    searchOpen = true;
+    searchOverlayEl.classList.add('open');
+    searchOverlayEl.setAttribute('aria-hidden', 'false');
+    setTimeout(() => {
+      document.addEventListener('click', searchOutsideClick, true);
+    }, 0);
+  }
+  function closeSearchBar() {
+    if (!searchOpen && !searchQuery) return;
+    searchInputEl.value = '';
+    searchQuery = '';
+    searchOpen = false;
+    searchOverlayEl.classList.remove('open');
+    searchOverlayEl.setAttribute('aria-hidden', 'true');
+    searchInputEl.blur();
+    document.removeEventListener('click', searchOutsideClick, true);
+    renderFeed();
+    renderStackHeader();
+  }
+  function searchOutsideClick(ev) {
+    const t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest('#searchOverlay, .chip, .bill-card, #btnSearch')) return;
+    closeSearchBar();
+  }
+
+  $('btnSearch').addEventListener('click', openSearchBar);
+  $('btnSearchClose').addEventListener('click', closeSearchBar);
+  searchInputEl.addEventListener('input', () => {
+    searchQuery = searchInputEl.value;
+    renderFeed();
+    renderStackHeader();
+  });
+  searchInputEl.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') closeSearchBar();
+  });
 
   // ───────────────────────────────────────────────────────────────────
   // Bills: subscribe + render feed
@@ -1619,6 +1781,8 @@
           <div>No bills yet.</div>
           <div style="margin-top: 8px;">Tap <strong>+</strong> to add your first one.</div>
         `;
+      } else if (searchQuery.trim()) {
+        empty.textContent = `No bills match "${searchQuery.trim()}".`;
       } else {
         empty.textContent = 'Nothing matches this filter.';
       }
@@ -1969,6 +2133,7 @@
       currentHouseholdId = null; currentHousehold = null; bills = [];
       onboardingMode = null;
       activeFilter = 'all';
+      closeSearchBar();
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
       if (!dt.modal.hidden) closeModal(dt.overlay, dt.modal);
       showSignInError(null);
