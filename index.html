@@ -533,6 +533,33 @@
   .field-stack .field-label {
     margin-bottom: 4px;
   }
+  .field-row { display: flex; gap: 10px; }
+  .field-row > * { flex: 1; min-width: 0; }
+
+  /* Tighter native select that matches .input visually */
+  .select-native {
+    width: 100%; box-sizing: border-box;
+    padding: 12px 36px 12px 14px;
+    font-size: 16px; font-family: var(--font-body); font-weight: 500;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    color: var(--text);
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1l5 5 5-5' stroke='%237a8770' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+  }
+  .select-native:focus { border-color: var(--accent); }
+
+  /* Compact owner picker — 3 narrow segments */
+  .owner-pick {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .owner-pick .seg-key { padding: 9px 6px; font-size: 13px; }
 
   /* segmented chip grid for frequency / owner */
   .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -878,7 +905,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
       <div id="abTitle" class="modal-title">New bill</div>
-      <button id="abSave" class="header-save" disabled>Save</button>
+      <span style="width: 38px;"></span>
     </div>
 
     <div class="modal-body field-stack">
@@ -889,41 +916,52 @@
         <input id="abName" class="input" type="text" maxlength="60" placeholder="e.g. BSES Rajdhani" autocomplete="off" />
       </div>
 
-      <div class="field">
-        <label class="field-label" for="abAmount">Amount <span style="color: var(--danger);">*</span></label>
-        <div class="amount-wrap">
-          <span class="amount-prefix">₹</span>
-          <input id="abAmount" class="input amount-input" type="text" inputmode="numeric" placeholder="0" />
-          <span id="abAmountPreview" class="amount-preview"></span>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="abAmount">Amount <span style="color: var(--danger);">*</span></label>
+          <div class="amount-wrap">
+            <span class="amount-prefix">₹</span>
+            <input id="abAmount" class="input amount-input" type="text" inputmode="numeric" placeholder="0" />
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="abFreq">Frequency <span style="color: var(--danger);">*</span></label>
+          <select id="abFreq" class="select-native">
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+            <option value="one_time">One-time</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="abCat">Category</label>
+          <select id="abCat" class="select-native">
+            <option value="utilities">Utilities</option>
+            <option value="subscriptions">Subscriptions</option>
+            <option value="credit_cards">Credit cards</option>
+            <option value="people">People</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="abNextDue">Next due</label>
+          <input id="abNextDue" class="input" type="date" />
         </div>
       </div>
 
       <div class="field">
-        <span class="field-label">Frequency <span style="color: var(--danger);">*</span></span>
-        <div id="abFreq" class="seg-grid"></div>
-      </div>
-
-      <div class="field">
-        <span class="field-label">Category</span>
-        <div id="abCat" class="cat-strip"></div>
-      </div>
-
-      <div class="field">
         <span class="field-label">Who pays</span>
-        <div id="abOwner" class="seg-grid"></div>
+        <div id="abOwner" class="owner-pick"></div>
       </div>
 
-      <div class="field">
-        <label class="field-label" for="abNextDue">Next due</label>
-        <input id="abNextDue" class="input" type="date" />
+      <div class="field-row" style="margin-top: 4px;">
+        <button id="abCancelBtn" type="button" class="btn btn-ghost" style="flex: 1;">Cancel</button>
+        <button id="abSubmit" class="btn btn-primary" disabled style="flex: 2;">Save bill</button>
       </div>
-
-      <div class="field">
-        <label class="field-label" for="abNotes">Notes (optional)</label>
-        <textarea id="abNotes" class="input" rows="2" maxlength="300" placeholder="Anything you want to remember" style="resize: vertical;"></textarea>
-      </div>
-
-      <button id="abSubmit" class="btn btn-primary btn-full" disabled style="margin-top: 4px;">Add 3 required fields</button>
     </div>
   </div>
 </div>
@@ -1646,86 +1684,53 @@
   // Add bill modal
   // ───────────────────────────────────────────────────────────────────
   const ab = {
-    overlay: $('modalOverlay'),
-    modal:   $('modalAddBill'),
-    title:   $('abTitle'),
-    cancel:  $('abCancel'),
-    save:    $('abSave'),
-    submit:  $('abSubmit'),
-    error:   $('abError'),
-    name:    $('abName'),
-    amount:  $('abAmount'),
-    preview: $('abAmountPreview'),
-    freq:    $('abFreq'),
-    cat:     $('abCat'),
-    owner:   $('abOwner'),
-    nextDue: $('abNextDue'),
-    notes:   $('abNotes'),
+    overlay:   $('modalOverlay'),
+    modal:     $('modalAddBill'),
+    title:     $('abTitle'),
+    cancel:    $('abCancel'),
+    cancelBtn: $('abCancelBtn'),
+    submit:    $('abSubmit'),
+    error:     $('abError'),
+    name:      $('abName'),
+    amount:    $('abAmount'),
+    freq:      $('abFreq'),
+    cat:       $('abCat'),
+    owner:     $('abOwner'),
+    nextDue:   $('abNextDue'),
   };
   let abState = null;
 
-  function buildSegmented(container, options, currentVal, onChange) {
+  function renderOwnerPicker() {
+    const container = ab.owner;
     container.innerHTML = '';
-    options.forEach(o => {
+    const me = currentUser?.uid;
+    const otherUid = otherMemberUid();
+    const opts = [
+      me ? { id: me, label: 'Me' } : null,
+      { id: 'shared', label: 'Shared' },
+      otherUid ? { id: otherUid, label: memberLabel(otherUid) } : null,
+    ].filter(Boolean);
+    opts.forEach(o => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'seg-key' + (currentVal === o.id ? ' active' : '');
+      b.className = 'seg-key' + (abState.owner === o.id ? ' active' : '');
       b.textContent = o.label;
-      b.addEventListener('click', () => onChange(o.id));
+      b.addEventListener('click', () => { abState.owner = o.id; renderOwnerPicker(); });
       container.appendChild(b);
-    });
-  }
-  function buildCatStrip(container, currentVal, onChange) {
-    container.innerHTML = '';
-    CAT_ORDER.forEach(c => {
-      const pick = document.createElement('button');
-      pick.type = 'button';
-      pick.className = 'cat-pick' + (currentVal === c ? ' active' : '');
-      const meta = CATEGORIES[c];
-      pick.innerHTML = `
-        <span class="cat-chip cat-${c}">${categoryIcon(c)}</span>
-        <span class="cat-pick-label">${meta.label}</span>
-      `;
-      pick.addEventListener('click', () => onChange(c));
-      container.appendChild(pick);
-    });
-    // Scroll the active chip into view after paint
-    requestAnimationFrame(() => {
-      const active = container.querySelector('.cat-pick.active');
-      if (active && active.scrollIntoView) {
-        try { active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }); } catch (_) {
-          active.scrollIntoView({ inline: 'center', block: 'nearest' });
-        }
-      }
     });
   }
 
   function abValidate() {
     const valid = abState && abState.name.trim() && Number(abState.amount) > 0 && abState.freq;
-    ab.save.disabled = !valid;
     ab.submit.disabled = !valid;
-    if (valid) {
-      ab.submit.textContent = `Save · ₹${indianGroup(Number(abState.amount))} ${abState.freq}`;
-    } else {
-      ab.submit.textContent = 'Add 3 required fields';
-    }
   }
   function abPaint() {
-    ab.name.value = abState.name;
-    ab.amount.value = abState.amount === 0 ? '' : String(abState.amount);
-    ab.preview.textContent = abState.amount > 0 ? fmtINR(abState.amount) : '';
+    ab.name.value    = abState.name;
+    ab.amount.value  = abState.amount === 0 ? '' : String(abState.amount);
+    ab.freq.value    = abState.freq;
+    ab.cat.value     = abState.cat;
     ab.nextDue.value = abState.nextDueYMD || '';
-    ab.notes.value = abState.notes || '';
-    buildSegmented(ab.freq, FREQS.slice(0, 3), abState.freq, (v) => { abState.freq = v; abPaint(); });
-    buildCatStrip(ab.cat, abState.cat, (v) => { abState.cat = v; abPaint(); });
-    const me = currentUser?.uid;
-    const otherUid = otherMemberUid();
-    const ownerOpts = [
-      me ? { id: me, label: 'Me' } : null,
-      { id: 'shared', label: 'Shared' },
-      otherUid ? { id: otherUid, label: memberLabel(otherUid) } : null,
-    ].filter(Boolean);
-    buildSegmented(ab.owner, ownerOpts, abState.owner, (v) => { abState.owner = v; abPaint(); });
+    renderOwnerPicker();
     abValidate();
   }
   function showAbError(msg) {
@@ -1741,11 +1746,11 @@
       amount:     prefill ? Number(prefill.amount || 0) : 0,
       freq:       prefill?.freq || prefill?.frequency || 'monthly',
       cat:        prefill?.cat  || prefill?.category  || 'utilities',
-      owner:      prefill?.owner || (currentUser?.uid || 'shared'),
+      owner:      prefill?.owner || 'shared',
       nextDueYMD: prefill?.nextDue ? ymdLocalIST(dateFromBill(prefill.nextDue)) : '',
-      notes:      prefill?.notes || '',
     };
     ab.title.textContent = editingBillId ? 'Edit bill' : 'New bill';
+    ab.submit.textContent = editingBillId ? 'Update bill' : 'Save bill';
     abPaint();
     openModal(ab.overlay, ab.modal);
     setTimeout(() => ab.name.focus(), 60);
@@ -1753,24 +1758,25 @@
   function closeAddBill() { closeModal(ab.overlay, ab.modal); editingBillId = null; }
 
   ab.cancel.addEventListener('click', closeAddBill);
+  ab.cancelBtn.addEventListener('click', closeAddBill);
   ab.overlay.addEventListener('click', closeAddBill);
   ab.name.addEventListener('input', () => { abState.name = ab.name.value; abValidate(); });
   ab.amount.addEventListener('input', () => {
     const cleaned = ab.amount.value.replace(/[^0-9]/g, '');
-    ab.amount.value = cleaned;
+    if (cleaned !== ab.amount.value) ab.amount.value = cleaned;
     abState.amount = Number(cleaned) || 0;
-    ab.preview.textContent = abState.amount > 0 ? fmtINR(abState.amount) : '';
     abValidate();
   });
+  ab.freq.addEventListener('change',    () => { abState.freq = ab.freq.value; abValidate(); });
+  ab.cat.addEventListener('change',     () => { abState.cat = ab.cat.value; });
   ab.nextDue.addEventListener('change', () => { abState.nextDueYMD = ab.nextDue.value; });
-  ab.notes.addEventListener('input', () => { abState.notes = ab.notes.value; });
 
   async function submitAddBill() {
     if (!currentUser || !currentHouseholdId) { showAbError('You need to be in a household to add bills.'); return; }
     if (!abState.name.trim()) { showAbError('Give the bill a name.'); ab.name.focus(); return; }
     if (!(Number(abState.amount) > 0)) { showAbError('Enter an amount in rupees.'); ab.amount.focus(); return; }
 
-    ab.submit.disabled = true; ab.save.disabled = true;
+    ab.submit.disabled = true;
     const original = ab.submit.textContent;
     ab.submit.textContent = 'Saving…';
 
@@ -1781,7 +1787,6 @@
       cat:     abState.cat,
       owner:   abState.owner,
       nextDue: timestampFromYMD(abState.nextDueYMD),
-      notes:   abState.notes.trim() || null,
       updatedAt: serverTimestamp(),
     };
 
@@ -1793,6 +1798,7 @@
         await setDoc(newRef, {
           ...payload,
           status:    'active',
+          notes:     null,
           createdAt: serverTimestamp(),
           createdBy: currentUser.uid,
         });
@@ -1801,10 +1807,9 @@
     } catch (err) {
       console.error('[bills] save failed', err);
       showAbError("Couldn't save the bill: " + (err.message || err.code));
-      ab.submit.disabled = false; ab.save.disabled = false; ab.submit.textContent = original;
+      ab.submit.disabled = false; ab.submit.textContent = original;
     }
   }
-  ab.save.addEventListener('click', submitAddBill);
   ab.submit.addEventListener('click', submitAddBill);
   $('btnAddBill').addEventListener('click', () => openAddBill(null));
 
