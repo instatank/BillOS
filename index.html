@@ -759,11 +759,58 @@
   .menu-divider { height: 1px; background: var(--border-soft); margin: 4px 6px; }
   .menu-section { padding: 6px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
+  /* Toast — bottom-anchored confirmation with optional undo */
+  .toast {
+    position: fixed; left: 50%;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    transform: translate(-50%, 60px);
+    z-index: 200;
+    background: var(--bg-elev-1);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 14px; font-weight: 500;
+    max-width: min(440px, calc(100% - 32px));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform .26s cubic-bezier(.2,.8,.2,1), opacity .22s ease;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    font-family: var(--font-body);
+  }
+  .toast.open {
+    opacity: 1; transform: translate(-50%, 0);
+    pointer-events: auto;
+  }
+  .toast-icon {
+    width: 24px; height: 24px; border-radius: 12px;
+    background: var(--success); color: var(--bg);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .toast-msg { flex: 1; min-width: 0; line-height: 1.3; }
+  .toast-undo {
+    background: transparent; border: 0;
+    color: var(--accent); font-weight: 600; font-size: 14px;
+    padding: 4px 8px; border-radius: 6px; cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toast-undo:hover { background: var(--bg-elev-2); }
+
   /* tabular nums everywhere amounts/dates appear */
   .num { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
+<div id="toast" class="toast" role="status" aria-live="polite">
+  <span class="toast-icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
+  </span>
+  <div id="toastMsg" class="toast-msg"></div>
+  <button id="toastUndo" class="toast-undo hidden" type="button">Undo</button>
+</div>
+
 <div class="app">
 
   <!-- ─── Loading view ─────────────────────────────────────────── -->
@@ -2337,6 +2384,22 @@
       if (bill.status === 'paused') patch.status = 'active';
     }
 
+    // Snapshot the fields we're about to overwrite so an Undo can restore
+    // them exactly. Missing fields are written back as null (Firestore
+    // treats null as "field present and empty"; updateDoc with these will
+    // clear the lastPaid* fields, which is what we want post-undo).
+    const prevState = {
+      lastPaidAt:     bill.lastPaidAt     ?? null,
+      lastPaidNote:   bill.lastPaidNote   ?? null,
+      lastPaidAmount: bill.lastPaidAmount ?? null,
+      nextDue:        bill.nextDue        ?? null,
+      status:         bill.status         || 'active',
+    };
+    const billName = bill.name || 'Bill';
+    // Capture intent now — payState gets cleared inside closePayBill()
+    const wasOneTime    = payState.isOneTime;
+    const oneTimeAction = payState.oneTimeAction;
+
     console.log('[pay] submit start', { hh: currentHouseholdId, billId: bill.id, patch });
 
     try {
@@ -2351,10 +2414,59 @@
       // Also close the detail modal so the user lands back on the bills feed
       // and clearly sees the bill move (next due advanced, or removed).
       if (!dt.modal.hidden) closeDetail();
+
+      // Confirmation toast with Undo. Message reflects what actually happened.
+      let msg;
+      if (wasOneTime) {
+        msg = oneTimeAction === 'remove'
+          ? `${billName} marked paid · removed from list`
+          : `${billName} marked paid`;
+      } else {
+        const newNext = patch.nextDue ? patch.nextDue.toDate() : null;
+        msg = newNext
+          ? `${billName} paid · next due ${fmtDate(newNext)}`
+          : `${billName} marked paid`;
+      }
+      showToast(msg, {
+        undo: async () => {
+          await updateDoc(ref, { ...prevState, updatedAt: serverTimestamp() });
+        },
+      });
     } catch (err) {
       console.error('[bills] mark paid failed', err);
       showPayError("Couldn't record payment: " + (err.message || err.code || String(err)));
       pay.submit.disabled = false; pay.submit.textContent = original;
+    }
+  });
+
+  // ───────────────────────────────────────────────────────────────────
+  // Toast (bottom-anchored confirmation, optional undo)
+  // ───────────────────────────────────────────────────────────────────
+  const toastEl   = $('toast');
+  const toastMsg  = $('toastMsg');
+  const toastUndo = $('toastUndo');
+  let toastTimer = null;
+  let toastUndoFn = null;
+
+  function showToast(message, opts = {}) {
+    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+    toastMsg.textContent = message;
+    toastUndoFn = opts.undo || null;
+    toastUndo.classList.toggle('hidden', !toastUndoFn);
+    toastEl.classList.add('open');
+    toastTimer = setTimeout(hideToast, opts.duration || 5000);
+  }
+  function hideToast() {
+    toastEl.classList.remove('open');
+    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+    toastUndoFn = null;
+  }
+  toastUndo.addEventListener('click', async () => {
+    const fn = toastUndoFn;
+    hideToast();
+    if (fn) {
+      try { await fn(); showToast('Undone.', { duration: 2500 }); }
+      catch (err) { console.error('[toast] undo failed', err); showToast("Couldn't undo.", { duration: 3500 }); }
     }
   });
 
@@ -2389,6 +2501,7 @@
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
       if (!dt.modal.hidden) closeModal(dt.overlay, dt.modal);
       if (!pay.modal.hidden) closeModal(pay.overlay, pay.modal);
+      hideToast();
       showSignInError(null);
       show('signedOut');
     }
