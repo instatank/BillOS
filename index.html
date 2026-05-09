@@ -1084,6 +1084,10 @@
         <div class="kv-row"><div class="kv-label">Frequency</div><div id="dtFrequency" class="kv-value"></div></div>
         <div class="kv-row"><div class="kv-label">Next due</div><div id="dtNextDue" class="kv-value"></div></div>
         <div class="kv-row"><div class="kv-label">Who pays</div><div id="dtOwner" class="kv-value"></div></div>
+        <div id="dtLastPaidRow" class="kv-row hidden" style="flex-direction: column; align-items: stretch; text-align: left; gap: 4px;">
+          <div class="kv-label">Last paid</div>
+          <div id="dtLastPaid" style="font-size: 14px; color: var(--text); line-height: 1.45;"></div>
+        </div>
         <div id="dtNotesRow" class="kv-row" style="flex-direction: column; align-items: stretch; text-align: left; gap: 4px;">
           <div class="kv-label">Notes</div>
           <div id="dtNotes" style="font-size: 14px; color: var(--text); line-height: 1.45;"></div>
@@ -1095,9 +1099,63 @@
       </div>
 
       <div class="detail-actions">
+        <button id="dtPay" class="btn btn-primary btn-full">Mark paid</button>
         <button id="dtPause" class="btn btn-soft btn-full">Pause bill</button>
         <button id="dtCancel" class="btn btn-danger btn-full">Cancel bill</button>
         <div class="detail-fineprint">Cancelling keeps the bill in your history. You can reactivate it later.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Pay bill sheet ───────────────────────────────────────── -->
+<div id="modalPayOverlay" class="modal-overlay" hidden></div>
+<div id="modalPay" class="modal sheet" hidden role="dialog" aria-modal="true" aria-label="Mark bill paid">
+  <div class="modal-inner">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="modal-header">
+      <button id="payCancel" class="nav-btn" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="modal-title">Mark paid</div>
+      <span style="width: 38px;"></span>
+    </div>
+
+    <div class="modal-body field-stack">
+      <div id="payError" class="banner hidden"></div>
+
+      <div class="card" id="payHeader" style="padding: 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+        <div id="payBillName" style="font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text); min-width: 0; word-break: break-word;"></div>
+        <span id="payBillAmount" class="amount" style="font-size: 22px; font-weight: 700;"></span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="payDate">Date paid</label>
+        <input id="payDate" class="input" type="date" />
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="payNote">How was it paid? (optional)</label>
+        <input id="payNote" class="input" type="text" maxlength="120" placeholder="e.g. UPI to BSES, cash to Sushila ji" autocomplete="off" />
+      </div>
+
+      <!-- Periodic: informational. One-time: choice. -->
+      <div id="payOutcomePeriodic" class="card hidden" style="padding: 12px 14px; display: flex; align-items: center; gap: 10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent); flex-shrink: 0;"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;">Next due rolls to</div>
+          <div id="payNextDuePreview" style="font-size: 15px; color: var(--text); font-weight: 600; margin-top: 2px;"></div>
+        </div>
+      </div>
+
+      <div id="payOutcomeOneTime" class="field hidden">
+        <span class="field-label">After marking paid</span>
+        <div id="payOneTimeChoice" class="seg-grid" style="grid-template-columns: 1fr 1fr;"></div>
+      </div>
+
+      <div class="field-row" style="margin-top: 4px;">
+        <button id="payCancelBtn" type="button" class="btn btn-ghost" style="flex: 1;">Cancel</button>
+        <button id="paySubmit" class="btn btn-primary" style="flex: 2;">Mark paid</button>
       </div>
     </div>
   </div>
@@ -1998,8 +2056,11 @@
     notesRow: $('dtNotesRow'),
     notes:    $('dtNotes'),
     added:    $('dtAdded'),
+    lastPaidRow: $('dtLastPaidRow'),
+    lastPaid: $('dtLastPaid'),
     pause:    $('dtPause'),
     cancel:   $('dtCancel'),
+    pay:      $('dtPay'),
   };
 
   function openDetail(billId) {
@@ -2059,12 +2120,25 @@
     const addedDate = dateFromBill(b.createdAt);
     dt.added.textContent = addedDate ? `${addedBy} · ${fmtDate(addedDate)}` : addedBy;
 
+    // Last paid info
+    const lastPaidDate = dateFromBill(b.lastPaidAt);
+    if (lastPaidDate) {
+      const noteSuffix = b.lastPaidNote ? ` · ${escapeHtml(b.lastPaidNote)}` : '';
+      dt.lastPaid.innerHTML = `${fmtDate(lastPaidDate)}${noteSuffix}`;
+      dt.lastPaidRow.classList.remove('hidden');
+    } else {
+      dt.lastPaidRow.classList.add('hidden');
+    }
+
     // Action buttons reflect status
     if (b.status === 'cancelled') {
+      dt.pay.classList.add('hidden');
       dt.pause.classList.add('hidden');
       dt.cancel.textContent = 'Reactivate bill';
       dt.cancel.className = 'btn btn-soft btn-full';
     } else {
+      dt.pay.classList.remove('hidden');
+      dt.pay.textContent = b.status === 'paused' ? 'Mark paid (resumes bill)' : 'Mark paid';
       dt.pause.classList.remove('hidden');
       dt.pause.textContent = b.status === 'paused' ? 'Reactivate bill' : 'Pause bill';
       dt.cancel.textContent = 'Cancel bill';
@@ -2106,6 +2180,169 @@
     closeDetail();
     setTimeout(() => openAddBill(b), 220);
   });
+  dt.pay.addEventListener('click', () => {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b) return;
+    openPayBill(b);
+  });
+
+  // ───────────────────────────────────────────────────────────────────
+  // Pay bill flow
+  //
+  // Periodic bills (weekly/monthly/quarterly/yearly): advance nextDue
+  //   one period from the current nextDue (not "today"), so paying late
+  //   doesn't push the next cycle further out.
+  // One-time bills: user picks "Remove from list" (default — sets
+  //   status=cancelled so the bill drops off the active feed but stays
+  //   in history) or "Keep on list".
+  // Either way: lastPaidAt / lastPaidNote / lastPaidAmount are written
+  //   so the detail screen shows when it was last cleared.
+  // ───────────────────────────────────────────────────────────────────
+  const pay = {
+    overlay:    $('modalPayOverlay'),
+    modal:      $('modalPay'),
+    cancelIcon: $('payCancel'),
+    cancelBtn:  $('payCancelBtn'),
+    submit:     $('paySubmit'),
+    error:      $('payError'),
+    name:       $('payBillName'),
+    amount:     $('payBillAmount'),
+    date:       $('payDate'),
+    note:       $('payNote'),
+    periodicBox: $('payOutcomePeriodic'),
+    nextDuePreview: $('payNextDuePreview'),
+    oneTimeBox: $('payOutcomeOneTime'),
+    oneTimeChoice: $('payOneTimeChoice'),
+  };
+  let payState = null;
+
+  function addMonthsClamped(date, months) {
+    const d = new Date(date);
+    const targetDay = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + months);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(targetDay, lastDay));
+    return d;
+  }
+  function advanceNextDue(currentDate, freq) {
+    if (!currentDate) return null;
+    const d = new Date(currentDate);
+    if (freq === 'weekly')    { d.setDate(d.getDate() + 7); return d; }
+    if (freq === 'monthly')   return addMonthsClamped(d, 1);
+    if (freq === 'quarterly') return addMonthsClamped(d, 3);
+    if (freq === 'yearly')    return addMonthsClamped(d, 12);
+    return null; // one_time has no advance
+  }
+
+  function showPayError(msg) {
+    if (!msg) { pay.error.classList.add('hidden'); pay.error.textContent = ''; return; }
+    pay.error.textContent = msg; pay.error.classList.remove('hidden');
+  }
+
+  function renderOneTimeChoice() {
+    pay.oneTimeChoice.innerHTML = '';
+    [
+      { id: 'remove', label: 'Remove from list' },
+      { id: 'keep',   label: 'Keep on list' },
+    ].forEach(o => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'seg-key' + (payState.oneTimeAction === o.id ? ' active' : '');
+      b.textContent = o.label;
+      b.addEventListener('click', () => {
+        payState.oneTimeAction = o.id;
+        renderOneTimeChoice();
+      });
+      pay.oneTimeChoice.appendChild(b);
+    });
+  }
+
+  function openPayBill(bill) {
+    const freq = bill.freq || bill.frequency || 'monthly';
+    const isOneTime = freq === 'one_time';
+    const todayYMD = ymdLocalIST(new Date());
+    const currentNext = dateFromBill(bill.nextDue) || new Date();
+
+    payState = {
+      billId: bill.id,
+      freq,
+      isOneTime,
+      amount: Number(bill.amount || 0),
+      currentNextDue: currentNext,
+      paidYMD: todayYMD,
+      note: '',
+      oneTimeAction: 'remove',
+    };
+
+    showPayError(null);
+    pay.name.textContent = bill.name || 'Untitled';
+    pay.amount.innerHTML = `<span class="sym">₹</span>${indianGroup(payState.amount)}`;
+    pay.date.value = todayYMD;
+    pay.note.value = '';
+
+    if (isOneTime) {
+      pay.periodicBox.classList.add('hidden');
+      pay.oneTimeBox.classList.remove('hidden');
+      renderOneTimeChoice();
+    } else {
+      pay.oneTimeBox.classList.add('hidden');
+      pay.periodicBox.classList.remove('hidden');
+      const newNext = advanceNextDue(currentNext, freq);
+      pay.nextDuePreview.textContent = newNext ? fmtDate(newNext) : '—';
+    }
+
+    openModal(pay.overlay, pay.modal);
+    setTimeout(() => pay.note.focus(), 60);
+  }
+  function closePayBill() {
+    closeModal(pay.overlay, pay.modal);
+    payState = null;
+  }
+
+  pay.cancelIcon.addEventListener('click', closePayBill);
+  pay.cancelBtn.addEventListener('click', closePayBill);
+  pay.overlay.addEventListener('click', closePayBill);
+  pay.date.addEventListener('change', () => { if (payState) payState.paidYMD = pay.date.value; });
+  pay.note.addEventListener('input',  () => { if (payState) payState.note = pay.note.value; });
+
+  pay.submit.addEventListener('click', async () => {
+    if (!payState || !currentHouseholdId) return;
+    const bill = bills.find(b => b.id === payState.billId);
+    if (!bill) { showPayError("Couldn't find that bill anymore."); return; }
+
+    pay.submit.disabled = true;
+    const original = pay.submit.textContent;
+    pay.submit.textContent = 'Saving…';
+
+    const paidTs = timestampFromYMD(payState.paidYMD) || Timestamp.now();
+    const noteTrim = (payState.note || '').trim() || null;
+
+    const patch = {
+      lastPaidAt: paidTs,
+      lastPaidNote: noteTrim,
+      lastPaidAmount: payState.amount,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (payState.isOneTime) {
+      if (payState.oneTimeAction === 'remove') patch.status = 'cancelled';
+    } else {
+      // Periodic — advance nextDue, and reactivate if paused (paying resumes the bill)
+      const newNext = advanceNextDue(payState.currentNextDue, payState.freq);
+      if (newNext) patch.nextDue = Timestamp.fromMillis(Date.UTC(newNext.getFullYear(), newNext.getMonth(), newNext.getDate(), 3, 30));
+      if (bill.status === 'paused') patch.status = 'active';
+    }
+
+    try {
+      await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', bill.id), patch);
+      closePayBill();
+    } catch (err) {
+      console.error('[bills] mark paid failed', err);
+      showPayError("Couldn't record payment: " + (err.message || err.code));
+      pay.submit.disabled = false; pay.submit.textContent = original;
+    }
+  });
 
   // ───────────────────────────────────────────────────────────────────
   // Modal helpers
@@ -2137,6 +2374,7 @@
       closeSearchBar();
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
       if (!dt.modal.hidden) closeModal(dt.overlay, dt.modal);
+      if (!pay.modal.hidden) closeModal(pay.overlay, pay.modal);
       showSignInError(null);
       show('signedOut');
     }
