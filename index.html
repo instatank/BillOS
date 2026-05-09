@@ -177,11 +177,17 @@
   .btn-danger  { background: transparent; color: var(--danger); border-color: var(--border); }
   .btn-plain   { background: transparent; color: var(--accent); border-color: transparent; min-height: 32px; padding: 6px 8px; }
   .btn-icon-circle {
-    width: 36px; height: 36px; min-height: 36px; padding: 0;
-    border-radius: 18px; border: 1px solid var(--border-soft);
+    width: 40px; height: 40px; min-height: 40px; padding: 0;
+    border-radius: 20px; border: 1px solid var(--border);
     background: var(--bg-elev-1); color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 18px; line-height: 1;
+    transition: background .12s, opacity .12s;
   }
+  .btn-icon-circle:hover { background: var(--bg-elev-2); }
+  .btn-icon-circle:active { opacity: 0.7; }
   .btn-icon-circle.is-accent { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn-icon-circle.is-accent:hover { background: var(--accent); filter: brightness(1.05); }
   .btn-link { color: var(--accent); font-size: 15px; padding: 6px 4px; min-height: 32px; }
 
   /* ─── BillOS mark ──────────────────────────────────────────────── */
@@ -465,9 +471,68 @@
     padding: 14px 14px 10px;
     border-bottom: 1px solid var(--border-soft);
     position: sticky; top: 0; background: var(--bg); z-index: 5;
+    gap: 10px;
   }
-  .modal-title { font-size: 16px; font-weight: 600; color: var(--text); }
+  .modal-title { font-size: 16px; font-weight: 600; color: var(--text); flex: 1; text-align: center; }
   .modal-body { flex: 1; padding: 16px 16px 24px; }
+
+  /* Bottom-sheet variant of the modal — used by Add bill */
+  .modal.sheet {
+    inset: auto 0 0 0;
+    height: auto;
+    max-height: 92vh;
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+    box-shadow: var(--shadow-modal);
+    transform: translateY(100%);
+    padding-top: 0;
+    border-top: 1px solid var(--border-soft);
+  }
+  .modal.sheet.open { transform: translateY(0); }
+  .modal.sheet .modal-inner { min-height: 0; }
+  .sheet-handle {
+    height: 16px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .sheet-handle::before {
+    content: ''; width: 36px; height: 4px; border-radius: 2px; background: var(--border-soft);
+  }
+
+  /* Visible navigation button — used for back/close everywhere */
+  .nav-btn {
+    width: 38px; height: 38px; min-height: 38px;
+    border-radius: 19px; border: 1px solid var(--border-soft);
+    background: var(--bg-elev-1); color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0; cursor: pointer; flex-shrink: 0;
+    transition: background .12s, opacity .12s;
+  }
+  .nav-btn:hover { background: var(--bg-elev-2); }
+  .nav-btn:active { opacity: 0.65; }
+  .nav-btn-pill {
+    width: auto; padding: 0 14px 0 10px; gap: 6px;
+    font-size: 14px; font-weight: 500; color: var(--text);
+  }
+  .nav-btn-accent {
+    background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  }
+  .nav-btn-accent:hover { background: var(--accent); filter: brightness(1.05); }
+
+  /* Save action button used in modal header (top-right) */
+  .header-save {
+    background: var(--accent); color: var(--accent-ink);
+    border: 1px solid var(--accent);
+    border-radius: 19px; padding: 7px 16px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; min-height: 38px;
+  }
+  .header-save:disabled { opacity: 0.4; cursor: default; }
+
+  /* Compact field stack used inside the add-bill sheet */
+  .field-stack { display: flex; flex-direction: column; gap: 12px; }
+  .field-stack .field-label {
+    margin-bottom: 4px;
+  }
 
   /* segmented chip grid for frequency / owner */
   .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -493,6 +558,26 @@
   }
   .cat-row.active { background: var(--accent-soft); border-color: var(--accent-border); }
   .cat-row .cat-label { flex: 1; font-size: 14.5px; color: var(--text); font-weight: 500; }
+
+  /* Horizontal category chip strip (compact picker) */
+  .cat-strip {
+    display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
+    padding: 2px 0 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .cat-strip::-webkit-scrollbar { display: none; }
+  .cat-pick {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px 7px 8px; border-radius: 999px;
+    background: var(--bg-elev-2); border: 1px solid var(--border-soft);
+    cursor: pointer; flex-shrink: 0;
+    transition: background .12s, border-color .12s;
+  }
+  .cat-pick:hover { background: var(--bg-elev-1); }
+  .cat-pick.active { background: var(--accent-soft); border-color: var(--accent-border); }
+  .cat-pick .cat-pick-label { font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; }
+  .cat-pick .cat-chip { width: 26px; height: 26px; border-radius: 999px; }
 
   /* amount input with ₹ prefix and live preview */
   .amount-wrap { position: relative; }
@@ -564,7 +649,7 @@
 
   /* ─── Sign-out menu (popover from ≡ icon) ────────────────────── */
   .menu-pop {
-    position: absolute; right: 12px; top: 56px; z-index: 30;
+    position: absolute; right: 12px; top: 64px; z-index: 30;
     background: var(--bg-elev-1); border: 1px solid var(--border-soft);
     border-radius: var(--radius); padding: 6px;
     box-shadow: 0 6px 30px rgba(0,0,0,0.18);
@@ -783,25 +868,26 @@
   </main>
 </div>
 
-<!-- ─── Add bill modal ───────────────────────────────────────── -->
+<!-- ─── Add bill sheet ───────────────────────────────────────── -->
 <div id="modalOverlay" class="modal-overlay" hidden></div>
-<div id="modalAddBill" class="modal" hidden role="dialog" aria-modal="true" aria-label="New bill">
+<div id="modalAddBill" class="modal sheet" hidden role="dialog" aria-modal="true" aria-label="New bill">
   <div class="modal-inner">
+    <div class="sheet-handle" aria-hidden="true"></div>
     <div class="modal-header">
-      <button id="abCancel" class="btn-link">Cancel</button>
+      <button id="abCancel" class="nav-btn" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
       <div id="abTitle" class="modal-title">New bill</div>
-      <button id="abSave" class="btn-link" style="font-weight: 600;" disabled>Save</button>
+      <button id="abSave" class="header-save" disabled>Save</button>
     </div>
 
-    <div class="modal-body">
-      <div id="abError" class="banner hidden" style="margin-bottom: 12px;"></div>
+    <div class="modal-body field-stack">
+      <div id="abError" class="banner hidden"></div>
 
       <div class="field">
         <label class="field-label" for="abName">Name <span style="color: var(--danger);">*</span></label>
         <input id="abName" class="input" type="text" maxlength="60" placeholder="e.g. BSES Rajdhani" autocomplete="off" />
       </div>
-
-      <div style="height: 16px;"></div>
 
       <div class="field">
         <label class="field-label" for="abAmount">Amount <span style="color: var(--danger);">*</span></label>
@@ -812,44 +898,32 @@
         </div>
       </div>
 
-      <div style="height: 16px;"></div>
-
       <div class="field">
         <span class="field-label">Frequency <span style="color: var(--danger);">*</span></span>
         <div id="abFreq" class="seg-grid"></div>
       </div>
 
-      <div style="height: 16px;"></div>
-
       <div class="field">
         <span class="field-label">Category</span>
-        <div id="abCat" class="cat-list"></div>
+        <div id="abCat" class="cat-strip"></div>
       </div>
-
-      <div style="height: 16px;"></div>
 
       <div class="field">
         <span class="field-label">Who pays</span>
         <div id="abOwner" class="seg-grid"></div>
       </div>
 
-      <div style="height: 16px;"></div>
-
       <div class="field">
         <label class="field-label" for="abNextDue">Next due</label>
         <input id="abNextDue" class="input" type="date" />
       </div>
 
-      <div style="height: 16px;"></div>
-
       <div class="field">
         <label class="field-label" for="abNotes">Notes (optional)</label>
-        <textarea id="abNotes" class="input" rows="3" maxlength="300" placeholder="Anything you want to remember about this bill" style="resize: vertical;"></textarea>
+        <textarea id="abNotes" class="input" rows="2" maxlength="300" placeholder="Anything you want to remember" style="resize: vertical;"></textarea>
       </div>
 
-      <div style="height: 22px;"></div>
-
-      <button id="abSubmit" class="btn btn-primary btn-full" disabled>Add 3 required fields</button>
+      <button id="abSubmit" class="btn btn-primary btn-full" disabled style="margin-top: 4px;">Add 3 required fields</button>
     </div>
   </div>
 </div>
@@ -859,12 +933,12 @@
 <div id="modalDetail" class="modal" hidden role="dialog" aria-modal="true" aria-label="Bill detail">
   <div class="modal-inner">
     <div class="modal-header">
-      <button id="dtBack" class="btn-link" style="display: flex; align-items: center; gap: 4px;">
+      <button id="dtBack" class="nav-btn nav-btn-pill" aria-label="Back to bills">
         <svg width="11" height="18" viewBox="0 0 11 18" fill="none"><path d="M9.5 1L1.5 9l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Bills</span>
       </button>
-      <div class="modal-title"></div>
-      <button id="dtEdit" class="btn-link" style="font-weight: 600;">Edit</button>
+      <div class="modal-title">Detail</div>
+      <button id="dtEdit" class="nav-btn nav-btn-pill" style="font-weight: 600;">Edit</button>
     </div>
 
     <div class="modal-body" style="padding: 12px 0 0;">
@@ -1601,20 +1675,28 @@
       container.appendChild(b);
     });
   }
-  function buildCatList(container, currentVal, onChange) {
+  function buildCatStrip(container, currentVal, onChange) {
     container.innerHTML = '';
     CAT_ORDER.forEach(c => {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'cat-row' + (currentVal === c ? ' active' : '');
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      pick.className = 'cat-pick' + (currentVal === c ? ' active' : '');
       const meta = CATEGORIES[c];
-      row.innerHTML = `
-        <span class="cat-chip cat-${c} sm">${categoryIcon(c)}</span>
-        <div class="cat-label">${meta.label}</div>
-        ${currentVal === c ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="var(--accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      pick.innerHTML = `
+        <span class="cat-chip cat-${c}">${categoryIcon(c)}</span>
+        <span class="cat-pick-label">${meta.label}</span>
       `;
-      row.addEventListener('click', () => onChange(c));
-      container.appendChild(row);
+      pick.addEventListener('click', () => onChange(c));
+      container.appendChild(pick);
+    });
+    // Scroll the active chip into view after paint
+    requestAnimationFrame(() => {
+      const active = container.querySelector('.cat-pick.active');
+      if (active && active.scrollIntoView) {
+        try { active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }); } catch (_) {
+          active.scrollIntoView({ inline: 'center', block: 'nearest' });
+        }
+      }
     });
   }
 
@@ -1635,7 +1717,7 @@
     ab.nextDue.value = abState.nextDueYMD || '';
     ab.notes.value = abState.notes || '';
     buildSegmented(ab.freq, FREQS.slice(0, 3), abState.freq, (v) => { abState.freq = v; abPaint(); });
-    buildCatList(ab.cat, abState.cat, (v) => { abState.cat = v; abPaint(); });
+    buildCatStrip(ab.cat, abState.cat, (v) => { abState.cat = v; abPaint(); });
     const me = currentUser?.uid;
     const otherUid = otherMemberUid();
     const ownerOpts = [
@@ -1671,6 +1753,7 @@
   function closeAddBill() { closeModal(ab.overlay, ab.modal); editingBillId = null; }
 
   ab.cancel.addEventListener('click', closeAddBill);
+  ab.overlay.addEventListener('click', closeAddBill);
   ab.name.addEventListener('input', () => { abState.name = ab.name.value; abValidate(); });
   ab.amount.addEventListener('input', () => {
     const cleaned = ab.amount.value.replace(/[^0-9]/g, '');
