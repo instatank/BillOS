@@ -1108,9 +1108,9 @@
   </div>
 </div>
 
-<!-- ─── Pay bill sheet ───────────────────────────────────────── -->
-<div id="modalPayOverlay" class="modal-overlay" hidden></div>
-<div id="modalPay" class="modal sheet" hidden role="dialog" aria-modal="true" aria-label="Mark bill paid">
+<!-- ─── Pay bill sheet (z-index above the detail modal) ──────── -->
+<div id="modalPayOverlay" class="modal-overlay" hidden style="z-index: 100;"></div>
+<div id="modalPay" class="modal sheet" hidden role="dialog" aria-modal="true" aria-label="Mark bill paid" style="z-index: 110;">
   <div class="modal-inner">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="modal-header">
@@ -2334,12 +2334,20 @@
       if (bill.status === 'paused') patch.status = 'active';
     }
 
+    console.log('[pay] submit start', { hh: currentHouseholdId, billId: bill.id, patch });
+
     try {
-      await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', bill.id), patch);
+      const ref = doc(db, 'households', currentHouseholdId, 'bills', bill.id);
+      const writePromise = updateDoc(ref, patch);
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timed out after 15s — check your connection')), 15000)
+      );
+      await Promise.race([writePromise, timeout]);
+      console.log('[pay] updateDoc resolved');
       closePayBill();
     } catch (err) {
       console.error('[bills] mark paid failed', err);
-      showPayError("Couldn't record payment: " + (err.message || err.code));
+      showPayError("Couldn't record payment: " + (err.message || err.code || String(err)));
       pay.submit.disabled = false; pay.submit.textContent = original;
     }
   });
