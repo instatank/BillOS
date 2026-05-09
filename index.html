@@ -59,6 +59,11 @@
 
     --shadow-modal: 0 -8px 30px rgba(0, 0, 0, 0.18);
     --overlay:      rgba(26, 31, 18, 0.45);
+
+    /* Month summary highlight — fresh mint label + soft blue ring/glow */
+    --summary-mint: #2f9e4f;
+    --summary-ring: rgba(91, 155, 213, 0.55);
+    --summary-glow: rgba(91, 155, 213, 0.14);
   }
 
   /* ─── Tokens — Stack · Dark (auto by system pref) ──────────────── */
@@ -97,6 +102,10 @@
 
       --shadow-modal: 0 -8px 30px rgba(0, 0, 0, 0.55);
       --overlay:      rgba(0, 0, 0, 0.55);
+
+      --summary-mint: #a4f5b8;
+      --summary-ring: rgba(127, 182, 245, 0.48);
+      --summary-glow: rgba(127, 182, 245, 0.14);
     }
   }
 
@@ -761,19 +770,23 @@
 
   /* Month summary card (top of bills feed) */
   .month-summary {
-    margin: 4px 12px 8px;
-    padding: 14px 16px;
+    margin: 6px 12px 14px;
+    padding: 18px 18px 16px;
     background: var(--bg-elev-1);
-    border: 1px solid var(--border-soft);
+    border: 1px solid var(--summary-ring);
     border-radius: var(--radius-card);
-    display: flex; flex-direction: column; gap: 10px;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow:
+      0 0 0 4px var(--summary-glow),
+      0 6px 18px rgba(0, 0, 0, 0.06);
+    position: relative;
   }
   .month-summary-head {
     display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   }
   .month-summary-label {
-    font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
-    color: var(--text-dim); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--summary-mint); font-weight: 700;
   }
   .month-summary-month {
     font-size: 12px; color: var(--text-muted); font-weight: 500;
