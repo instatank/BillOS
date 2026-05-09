@@ -448,8 +448,8 @@
     font-size: 11px; font-weight: 700;
     flex-shrink: 0;
   }
-  .due-pill.is-soon { background: var(--accent); color: var(--accent-ink); }
-  .due-pill.is-overdue { background: var(--danger); color: var(--bg-elev-1); }
+  .due-pill.is-soon  { background: var(--warn);   color: var(--bg-elev-1); }
+  .due-pill.is-urgent { background: var(--danger); color: var(--bg-elev-1); }
 
   .bill-row-main { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .bill-name { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--text); letter-spacing: -0.2px; min-width: 0; word-break: break-word; }
@@ -1807,8 +1807,9 @@
     if (b.status === 'paused')    card.classList.add('is-paused');
     if (b.status === 'cancelled') card.classList.add('is-cancelled');
 
+    // Red for overdue + due within 3 days, yellow for 4–7 days, neutral beyond a week.
     const dueClass = isFinite(days)
-      ? (days < 0 ? ' is-overdue' : (days <= 3 ? ' is-soon' : ''))
+      ? (days <= 3 ? ' is-urgent' : (days <= 7 ? ' is-soon' : ''))
       : '';
 
     const ownerLabelText = b.owner === 'shared' ? 'Shared' : memberLabel(b.owner);
