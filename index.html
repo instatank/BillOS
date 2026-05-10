@@ -1237,6 +1237,16 @@
         <div id="abOwner" class="owner-pick"></div>
       </div>
 
+      <div class="field">
+        <span class="field-label">Payment mode</span>
+        <div id="abMode" class="owner-pick"></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="abNotes">Notes <span style="color: var(--text-muted); font-weight: 400;">(optional)</span></label>
+        <textarea id="abNotes" class="input" rows="2" maxlength="280" placeholder="e.g. ₹5k advance paid, or anything you want to remember" style="resize: vertical; min-height: 0;"></textarea>
+      </div>
+
       <div class="field-row" style="margin-top: 4px;">
         <button id="abCancelBtn" type="button" class="btn btn-ghost" style="flex: 1;">Cancel</button>
         <button id="abSubmit" class="btn btn-primary" disabled style="flex: 2;">Save bill</button>
@@ -1274,6 +1284,7 @@
         <div class="kv-row"><div class="kv-label">Frequency</div><div id="dtFrequency" class="kv-value"></div></div>
         <div class="kv-row"><div class="kv-label">Next due</div><div id="dtNextDue" class="kv-value"></div></div>
         <div class="kv-row"><div class="kv-label">Who pays</div><div id="dtOwner" class="kv-value"></div></div>
+        <div class="kv-row"><div class="kv-label">Payment mode</div><div id="dtMode" class="kv-value"></div></div>
         <div id="dtLastPaidRow" class="kv-row hidden" style="flex-direction: column; align-items: stretch; text-align: left; gap: 4px;">
           <div class="kv-label">Last paid</div>
           <div id="dtLastPaid" style="font-size: 14px; color: var(--text); line-height: 1.45;"></div>
@@ -2280,6 +2291,8 @@
     cat:       $('abCat'),
     owner:     $('abOwner'),
     nextDue:   $('abNextDue'),
+    mode:      $('abMode'),
+    notes:     $('abNotes'),
   };
   let abState = null;
 
@@ -2303,6 +2316,30 @@
     });
   }
 
+  // Payment mode chips: how the bill gets settled. Auto-renew = it'll
+  // pay itself (autopay/standing instruction); Manual = you push the
+  // payment each cycle (UPI / online); Cash = handed over physically.
+  const PAYMENT_MODES = [
+    { id: 'auto-renew', label: 'Auto-renew' },
+    { id: 'manual',     label: 'Manual' },
+    { id: 'cash',       label: 'Cash' },
+  ];
+  function renderModePicker() {
+    const container = ab.mode;
+    container.innerHTML = '';
+    PAYMENT_MODES.forEach(o => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'seg-key' + (abState.paymentMode === o.id ? ' active' : '');
+      b.textContent = o.label;
+      b.addEventListener('click', () => { abState.paymentMode = o.id; renderModePicker(); });
+      container.appendChild(b);
+    });
+  }
+  function paymentModeLabel(id) {
+    return (PAYMENT_MODES.find(m => m.id === id) || {}).label || '—';
+  }
+
   function abValidate() {
     const valid = abState && abState.name.trim() && Number(abState.amount) > 0 && abState.freq;
     ab.submit.disabled = !valid;
@@ -2313,7 +2350,9 @@
     ab.freq.value    = abState.freq;
     ab.cat.value     = abState.cat;
     ab.nextDue.value = abState.nextDueYMD || '';
+    ab.notes.value   = abState.notes || '';
     renderOwnerPicker();
+    renderModePicker();
     abValidate();
   }
   function showAbError(msg) {
@@ -2325,12 +2364,14 @@
     showAbError(null);
     editingBillId = prefill?.id || null;
     abState = {
-      name:       prefill?.name || '',
-      amount:     prefill ? Number(prefill.amount || 0) : 0,
-      freq:       prefill?.freq || prefill?.frequency || 'monthly',
-      cat:        prefill?.cat  || prefill?.category  || 'utilities',
-      owner:      prefill?.owner || 'shared',
-      nextDueYMD: prefill?.nextDue ? ymdLocalIST(dateFromBill(prefill.nextDue)) : '',
+      name:        prefill?.name || '',
+      amount:      prefill ? Number(prefill.amount || 0) : 0,
+      freq:        prefill?.freq || prefill?.frequency || 'monthly',
+      cat:         prefill?.cat  || prefill?.category  || 'utilities',
+      owner:       prefill?.owner || 'shared',
+      nextDueYMD:  prefill?.nextDue ? ymdLocalIST(dateFromBill(prefill.nextDue)) : '',
+      paymentMode: prefill?.paymentMode || 'manual',
+      notes:       prefill?.notes || '',
     };
     // Snapshot original values for field-level diffing at submit, so two
     // people editing different fields concurrently don't clobber each
@@ -2357,6 +2398,7 @@
   ab.freq.addEventListener('change',    () => { abState.freq = ab.freq.value; abValidate(); });
   ab.cat.addEventListener('change',     () => { abState.cat = ab.cat.value; });
   ab.nextDue.addEventListener('change', () => { abState.nextDueYMD = ab.nextDue.value; });
+  ab.notes.addEventListener('input',    () => { abState.notes = ab.notes.value; });
 
   async function submitAddBill() {
     if (!currentUser || !currentHouseholdId) { showAbError('You need to be in a household to add bills.'); return; }
@@ -2381,6 +2423,10 @@
         if (abState.freq       !== orig.freq)       patch.freq    = abState.freq;
         if (abState.cat        !== orig.cat)        patch.cat     = abState.cat;
         if (abState.owner      !== orig.owner)      patch.owner   = abState.owner;
+        if (abState.paymentMode !== orig.paymentMode) patch.paymentMode = abState.paymentMode;
+        const newNotes = (abState.notes || '').trim();
+        const origNotes = (orig.notes || '').trim();
+        if (newNotes !== origNotes) patch.notes = newNotes || null;
         if ((abState.nextDueYMD || '') !== (orig.nextDueYMD || '')) {
           patch.nextDue = timestampFromYMD(abState.nextDueYMD);
         }
@@ -2397,16 +2443,17 @@
       } else {
         const newRef = doc(collection(db, 'households', currentHouseholdId, 'bills'));
         await setDoc(newRef, {
-          name:    abState.name.trim(),
-          amount:  Number(abState.amount),
-          freq:    abState.freq,
-          cat:     abState.cat,
-          owner:   abState.owner,
-          nextDue: timestampFromYMD(abState.nextDueYMD),
-          status:    'active',
-          notes:     null,
-          createdAt: serverTimestamp(),
-          createdBy: currentUser.uid,
+          name:        abState.name.trim(),
+          amount:      Number(abState.amount),
+          freq:        abState.freq,
+          cat:         abState.cat,
+          owner:       abState.owner,
+          paymentMode: abState.paymentMode || 'manual',
+          nextDue:     timestampFromYMD(abState.nextDueYMD),
+          status:      'active',
+          notes:       (abState.notes || '').trim() || null,
+          createdAt:   serverTimestamp(),
+          createdBy:   currentUser.uid,
           ...auditMeta(),
         });
       }
@@ -2437,6 +2484,7 @@
     frequency: $('dtFrequency'),
     nextDue:  $('dtNextDue'),
     owner:    $('dtOwner'),
+    mode:     $('dtMode'),
     notesRow: $('dtNotesRow'),
     notes:    $('dtNotes'),
     added:    $('dtAdded'),
@@ -2492,6 +2540,7 @@
     dt.frequency.textContent = FREQ_LABEL[freq] || freq;
     dt.nextDue.textContent = dueDate ? fmtDate(dueDate) : '—';
     dt.owner.textContent = b.owner === 'shared' ? 'Shared' : memberLabel(b.owner);
+    dt.mode.textContent = paymentModeLabel(b.paymentMode || 'manual');
 
     if (b.notes) {
       dt.notes.textContent = b.notes;
