@@ -27,18 +27,30 @@ follow to keep them consistent. Audit this before changing any
   - Falls back to memory cache (no offline) if IndexedDB is unavailable
     (private mode, storage disabled). Console logs which mode is active.
 
-## Soft-delete policy (no tombstones needed)
+## Delete policy (mostly soft, one explicit hard path)
 
-Bills are **never** hard-deleted. Cancellation sets `status='cancelled'`,
-which is itself a tombstone marker — the bill stays in Firestore, drops
-out of the active feed, and remains reachable for reactivation or
-history. So the "remote-merge resurrects deletions" failure mode from
-DayOS doesn't apply here.
+The default removal path is **soft-delete via cancellation**:
+`status='cancelled'`. The bill stays in Firestore, drops out of the
+Active feed, and remains reachable via the Cancelled status tab for
+reactivation or history.
 
-Households also can't be deleted (`allow delete: if false` in rules).
-The only doc class that *is* deleted is `/inviteCodes/{code}`, and only
-inside the join transaction or regenerate batch — atomic with the
-membership change, so no orphaning race.
+There is **one explicit hard-delete path**: the **Delete** action on
+the bill detail screen (sits next to Cancel in a 2:1 row). It calls
+`deleteDoc()` and wipes the bill entirely. Used for test entries and
+mistaken entries — surfaced behind a `confirm()` prompt so it's a
+deliberate action.
+
+The "remote-merge resurrects deletions" failure mode from DayOS
+doesn't apply here because we use `onSnapshot` rather than a custom
+remote-first merge — when one user deletes, the other's snapshot fires
+with the doc removed and our `paintDetail()` auto-closes if the open
+modal's bill is gone (see the `if (!b) closeDetail()` guard in
+`paintDetail`). No tombstone needed.
+
+Households can't be deleted (`allow delete: if false` in rules). The
+only other doc class that gets deleted is `/inviteCodes/{code}`, and
+only inside the join transaction or regenerate batch — atomic with
+the membership change, so no orphaning race.
 
 ## Concurrency rules
 

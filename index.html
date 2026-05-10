@@ -350,7 +350,7 @@
   /* ─── Search row + filter chip strip ──────────────────────────── */
   .search-row {
     position: relative;
-    padding: 10px 16px;
+    padding: 8px 16px 4px;
     box-sizing: border-box;
   }
   .search-row-inner {
@@ -381,13 +381,13 @@
   }
   .chip-strip::-webkit-scrollbar { display: none; }
   .chip-strip-inner {
-    display: inline-flex; gap: 8px; white-space: nowrap; padding-right: 8px;
+    display: inline-flex; gap: 6px; white-space: nowrap; padding-right: 8px;
   }
   .chip {
-    padding: 7px 14px; border-radius: 999px;
+    padding: 5px 11px; border-radius: 999px;
     background: var(--bg-elev-1); color: var(--text);
     border: 1px solid var(--border-soft);
-    font-size: 13px; font-weight: 600;
+    font-size: 11.5px; font-weight: 600;
     cursor: pointer;
   }
   .chip.active {
@@ -398,7 +398,7 @@
   .filter-row {
     display: flex; align-items: center;
     gap: 10px;
-    padding: 2px 16px 10px;
+    padding: 0 16px 6px;
   }
   .filter-row-center { justify-content: center; }
   .seg-pill {
@@ -431,7 +431,7 @@
      Synchronous focus on open keeps the mobile soft keyboard popping. */
   .search-overlay {
     position: absolute;
-    top: 10px; bottom: 10px; left: 16px; right: 16px;
+    top: 8px; bottom: 4px; left: 16px; right: 16px;
     display: flex; align-items: center; gap: 8px;
     background: var(--bg-elev-1);
     border: 1px solid var(--border);
@@ -770,6 +770,12 @@
   .kv-value { font-size: 15px; color: var(--text); font-weight: 500; text-align: right; }
 
   .detail-actions { padding: 20px 12px 36px; display: flex; flex-direction: column; gap: 8px; }
+  .cancel-delete-row { display: flex; gap: 8px; }
+  .btn-danger-solid {
+    background: var(--danger); color: var(--bg-elev-1);
+    border-color: var(--danger);
+  }
+  .btn-danger-solid:hover { filter: brightness(1.05); }
   .detail-fineprint { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; padding: 0 24px; }
 
   /* ─── Member pills (household card) ──────────────────────────── */
@@ -1341,8 +1347,11 @@
       <div class="detail-actions">
         <button id="dtPay" class="btn btn-primary btn-full">Mark paid</button>
         <button id="dtPause" class="btn btn-soft btn-full">Pause bill</button>
-        <button id="dtCancel" class="btn btn-danger btn-full">Cancel bill</button>
-        <div class="detail-fineprint">Cancelling keeps the bill in your history. You can reactivate it later.</div>
+        <div class="cancel-delete-row">
+          <button id="dtCancel" class="btn btn-danger" style="flex: 2;">Cancel bill</button>
+          <button id="dtDelete" class="btn btn-danger-solid" style="flex: 1;">Delete</button>
+        </div>
+        <div class="detail-fineprint">Cancel keeps the bill in your history (toggle the Cancelled tab to find it). Delete removes it permanently.</div>
       </div>
     </div>
   </div>
@@ -2577,6 +2586,7 @@
     pause:    $('dtPause'),
     cancel:   $('dtCancel'),
     pay:      $('dtPay'),
+    delete:   $('dtDelete'),
   };
 
   function openDetail(billId) {
@@ -2647,20 +2657,22 @@
       dt.lastPaidRow.classList.add('hidden');
     }
 
-    // Action buttons reflect status
+    // Action buttons reflect status. Cancel/Delete share a 2:1 row;
+    // Delete is always available regardless of status.
     if (b.status === 'cancelled') {
       dt.pay.classList.add('hidden');
       dt.pause.classList.add('hidden');
       dt.cancel.textContent = 'Reactivate bill';
-      dt.cancel.className = 'btn btn-soft btn-full';
+      dt.cancel.className = 'btn btn-soft';
     } else {
       dt.pay.classList.remove('hidden');
       dt.pay.textContent = b.status === 'paused' ? 'Mark paid (resumes bill)' : 'Mark paid';
       dt.pause.classList.remove('hidden');
       dt.pause.textContent = b.status === 'paused' ? 'Reactivate bill' : 'Pause bill';
       dt.cancel.textContent = 'Cancel bill';
-      dt.cancel.className = 'btn btn-danger btn-full';
+      dt.cancel.className = 'btn btn-danger';
     }
+    // Cancel inherits flex: 2 from the inline style; class change preserves it.
   }
 
   async function billUpdate(patch) {
@@ -2701,6 +2713,31 @@
     const b = bills.find(x => x.id === activeDetailBillId);
     if (!b) return;
     openPayBill(b);
+  });
+
+  // Hard delete — wipes the bill doc entirely. Native confirm() since
+  // this is a rare action used for test/mistake cleanup; users are
+  // expected to think before tapping it. No undo (bill + history gone).
+  // Cancel is the soft path that keeps the bill reachable in history.
+  dt.delete.addEventListener('click', async () => {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b || !currentHouseholdId) return;
+    const name = b.name || 'this bill';
+    if (!confirm(`Permanently delete "${name}"? This wipes the bill and its history. Can't be undone.`)) return;
+    dt.delete.disabled = true;
+    const original = dt.delete.textContent;
+    dt.delete.textContent = 'Deleting…';
+    try {
+      await deleteDoc(doc(db, 'households', currentHouseholdId, 'bills', b.id));
+      console.log('[bills] deleted', b.id);
+      closeDetail();
+      showToast(`${name} deleted`, { duration: 3500 });
+    } catch (err) {
+      console.error('[bills] delete failed', err);
+      alert("Couldn't delete bill: " + (err.message || err.code));
+      dt.delete.disabled = false;
+      dt.delete.textContent = original;
+    }
   });
 
   // ───────────────────────────────────────────────────────────────────
