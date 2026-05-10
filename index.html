@@ -770,7 +770,13 @@
   .kv-value { font-size: 15px; color: var(--text); font-weight: 500; text-align: right; }
 
   .detail-actions { padding: 20px 12px 36px; display: flex; flex-direction: column; gap: 8px; }
-  .cancel-delete-row { display: flex; gap: 8px; }
+  .action-row { display: flex; gap: 8px; }
+  .action-row .btn { flex: 1; min-width: 0; }
+  .btn-pause {
+    background: var(--bg-elev-2); color: var(--warn);
+    border-color: var(--border-soft);
+  }
+  .btn-pause:hover { background: var(--bg-elev-1); }
   .btn-danger-solid {
     background: var(--danger); color: var(--bg-elev-1);
     border-color: var(--danger);
@@ -1346,10 +1352,10 @@
 
       <div class="detail-actions">
         <button id="dtPay" class="btn btn-primary btn-full">Mark paid</button>
-        <button id="dtPause" class="btn btn-soft btn-full">Pause bill</button>
-        <div class="cancel-delete-row">
-          <button id="dtCancel" class="btn btn-danger" style="flex: 2;">Cancel bill</button>
-          <button id="dtDelete" class="btn btn-danger-solid" style="flex: 1;">Delete</button>
+        <div class="action-row">
+          <button id="dtPause"  class="btn btn-pause">Pause</button>
+          <button id="dtCancel" class="btn btn-danger">Cancel</button>
+          <button id="dtDelete" class="btn btn-danger-solid">Delete</button>
         </div>
         <div class="detail-fineprint">Cancel keeps the bill in your history (toggle the Cancelled tab to find it). Delete removes it permanently.</div>
       </div>
@@ -2660,22 +2666,23 @@
       dt.lastPaidRow.classList.add('hidden');
     }
 
-    // Action buttons reflect status. Cancel/Delete share a 2:1 row;
-    // Delete is always available regardless of status.
+    // Action row: Pause | Cancel | Delete (equal width). Labels collapse
+    // to one word each so they fit on narrow screens. Pause/Cancel
+    // re-purpose to Resume/Reactivate when their state applies.
+    // Delete is always shown regardless of status.
     if (b.status === 'cancelled') {
       dt.pay.classList.add('hidden');
       dt.pause.classList.add('hidden');
-      dt.cancel.textContent = 'Reactivate bill';
+      dt.cancel.textContent = 'Reactivate';
       dt.cancel.className = 'btn btn-soft';
     } else {
       dt.pay.classList.remove('hidden');
       dt.pay.textContent = b.status === 'paused' ? 'Mark paid (resumes bill)' : 'Mark paid';
       dt.pause.classList.remove('hidden');
-      dt.pause.textContent = b.status === 'paused' ? 'Reactivate bill' : 'Pause bill';
-      dt.cancel.textContent = 'Cancel bill';
+      dt.pause.textContent = b.status === 'paused' ? 'Resume' : 'Pause';
+      dt.cancel.textContent = 'Cancel';
       dt.cancel.className = 'btn btn-danger';
     }
-    // Cancel inherits flex: 2 from the inline style; class change preserves it.
   }
 
   async function billUpdate(patch) {
