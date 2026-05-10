@@ -16,6 +16,14 @@ The product was previously named BillOS. References to that name in the historic
 - PWA via `manifest.json` + `sw.js`
 - Vercel for hosting
 
+## Deployment
+- Production branch: `claude/design-system` (GitHub default branch).
+  Vercel deploys this as production automatically on every push — no
+  manual promote step. To ship a change, just commit + push to this
+  branch.
+- The other working branch `claude/product-build-sop-xaE1E` is a
+  historical/comparison branch and is NOT deployed.
+
 ## Hard rules
 - Do NOT exceed MVP Shell scope. Out-of-scope ideas → write to `PHASE_2.md` and keep moving.
 - One sub-task at a time. Confirm with AA before starting the next.
