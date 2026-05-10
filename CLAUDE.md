@@ -23,6 +23,11 @@ The product was previously named BillOS. References to that name in the historic
   branch.
 - The other working branch `claude/product-build-sop-xaE1E` is a
   historical/comparison branch and is NOT deployed.
+- If Vercel still shows new commits as "Preview" after a default-branch
+  switch on GitHub, disconnect and reconnect the Git integration in
+  Vercel (Settings → Git → Disconnect, then re-link the repo) — Vercel
+  caches the production branch at connect time and only re-reads it on
+  re-connect.
 
 ## Hard rules
 - Do NOT exceed MVP Shell scope. Out-of-scope ideas → write to `PHASE_2.md` and keep moving.
