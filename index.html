@@ -2591,6 +2591,9 @@
 
   function openDetail(billId) {
     activeDetailBillId = billId;
+    // Singleton DOM elements — reset any per-action transient state so a
+    // previous run's "Saving…/Deleting…" never sticks across opens.
+    if (typeof resetDeleteButton === 'function') resetDeleteButton();
     paintDetail();
     openModal(dt.overlay, dt.modal);
   }
@@ -2719,24 +2722,27 @@
   // this is a rare action used for test/mistake cleanup; users are
   // expected to think before tapping it. No undo (bill + history gone).
   // Cancel is the soft path that keeps the bill reachable in history.
+  function resetDeleteButton() {
+    dt.delete.disabled = false;
+    dt.delete.textContent = 'Delete';
+  }
   dt.delete.addEventListener('click', async () => {
     const b = bills.find(x => x.id === activeDetailBillId);
     if (!b || !currentHouseholdId) return;
     const name = b.name || 'this bill';
     if (!confirm(`Permanently delete "${name}"? This wipes the bill and its history. Can't be undone.`)) return;
     dt.delete.disabled = true;
-    const original = dt.delete.textContent;
     dt.delete.textContent = 'Deleting…';
     try {
       await deleteDoc(doc(db, 'households', currentHouseholdId, 'bills', b.id));
       console.log('[bills] deleted', b.id);
+      resetDeleteButton();
       closeDetail();
       showToast(`${name} deleted`, { duration: 3500 });
     } catch (err) {
       console.error('[bills] delete failed', err);
       alert("Couldn't delete bill: " + (err.message || err.code));
-      dt.delete.disabled = false;
-      dt.delete.textContent = original;
+      resetDeleteButton();
     }
   });
 
