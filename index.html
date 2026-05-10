@@ -548,7 +548,7 @@
     gap: 10px;
   }
   .modal-title { font-size: 16px; font-weight: 600; color: var(--text); flex: 1; text-align: center; }
-  .modal-body { flex: 1; padding: 16px 16px 24px; }
+  .modal-body { flex: 1; padding: 14px 14px 18px; }
 
   /* Bottom-sheet variant of the modal — used by Add bill */
   .modal.sheet {
@@ -603,9 +603,9 @@
   .header-save:disabled { opacity: 0.4; cursor: default; }
 
   /* Compact field stack used inside the add-bill sheet */
-  .field-stack { display: flex; flex-direction: column; gap: 12px; }
+  .field-stack { display: flex; flex-direction: column; gap: 10px; }
   .field-stack .field-label {
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
   .field-row { display: flex; gap: 10px; }
   .field-row > * { flex: 1; min-width: 0; }
@@ -634,6 +634,8 @@
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
   }
   .owner-pick .seg-key { padding: 9px 6px; font-size: 13px; }
+  /* Payment mode picker is 2-column; reuses .owner-pick chrome */
+  #abMode { grid-template-columns: repeat(2, 1fr); }
 
   /* segmented chip grid for frequency / owner */
   .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -1244,7 +1246,7 @@
 
       <div class="field">
         <label class="field-label" for="abNotes">Notes <span style="color: var(--text-muted); font-weight: 400;">(optional)</span></label>
-        <textarea id="abNotes" class="input" rows="2" maxlength="280" placeholder="e.g. ₹5k advance paid, or anything you want to remember" style="resize: vertical; min-height: 0;"></textarea>
+        <input id="abNotes" class="input" type="text" maxlength="200" placeholder="e.g. ₹5k advance paid" autocomplete="off" />
       </div>
 
       <div class="field-row" style="margin-top: 4px;">
@@ -2316,14 +2318,20 @@
     });
   }
 
-  // Payment mode chips: how the bill gets settled. Auto-renew = it'll
-  // pay itself (autopay/standing instruction); Manual = you push the
-  // payment each cycle (UPI / online); Cash = handed over physically.
+  // Payment mode: how the bill gets settled. Auto-renew = autopay /
+  // standing instruction; Manual = you push it each cycle. Two options
+  // only — earlier "Cash" option dropped per design feedback. Legacy
+  // bills tagged 'cash' still get a readable label on the detail
+  // screen via PAYMENT_MODE_LABELS, they just can't be re-picked.
   const PAYMENT_MODES = [
     { id: 'auto-renew', label: 'Auto-renew' },
     { id: 'manual',     label: 'Manual' },
-    { id: 'cash',       label: 'Cash' },
   ];
+  const PAYMENT_MODE_LABELS = {
+    'auto-renew': 'Auto-renew',
+    'manual':     'Manual',
+    'cash':       'Cash',  // legacy
+  };
   function renderModePicker() {
     const container = ab.mode;
     container.innerHTML = '';
@@ -2337,7 +2345,7 @@
     });
   }
   function paymentModeLabel(id) {
-    return (PAYMENT_MODES.find(m => m.id === id) || {}).label || '—';
+    return PAYMENT_MODE_LABELS[id] || '—';
   }
 
   function abValidate() {
