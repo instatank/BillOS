@@ -394,6 +394,39 @@
     background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   }
 
+  /* Filter row 2: status segment (left) + owner segment (right) */
+  .filter-row {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px;
+    padding: 4px 16px 8px;
+    flex-wrap: wrap;
+  }
+  .seg-pill {
+    display: inline-flex;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    padding: 3px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .seg-pill button {
+    background: transparent; border: 0;
+    padding: 6px 12px;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--text-dim);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .12s, color .12s;
+  }
+  .seg-pill button:hover { color: var(--text); }
+  .seg-pill button.active {
+    background: var(--bg-elev-1);
+    color: var(--text);
+    box-shadow: 0 1px 0 var(--border-soft);
+  }
+
   /* Search overlay: always mounted, opacity-toggled.
      Synchronous focus on open keeps the mobile soft keyboard popping. */
   .search-overlay {
@@ -1150,6 +1183,11 @@
       </div>
     </div>
 
+    <div class="filter-row">
+      <div id="statusSegment" class="seg-pill" role="tablist" aria-label="Filter by status"></div>
+      <div id="ownerSegment"  class="seg-pill" role="tablist" aria-label="Filter by who pays"></div>
+    </div>
+
     <section id="monthSummary" class="month-summary hidden" aria-label="This month's payments">
       <div class="month-summary-head">
         <span class="month-summary-label">Paid this month</span>
@@ -1544,7 +1582,14 @@
   let unsubBills = null;
   let inviteTicker = null;
   let onboardingMode = null; // 'choice' | 'created' | 'join' — overrides default routing post-create
-  let activeFilter = 'all';
+  // Filter state — three independent axes
+  //   categoryFilter: 'all' | 'utilities' | 'subscriptions' | 'credit_cards' | 'people' | 'other'
+  //   statusFilter:   'active' | 'paused' | 'cancelled'           (default Active)
+  //   ownerFilter:    'all' | 'mine' | 'shared' | 'other'         (other = the second household member)
+  // searchQuery composes with all three.
+  let categoryFilter = 'all';
+  let statusFilter   = 'active';
+  let ownerFilter    = 'all';
   let searchQuery = '';
   let searchOpen = false;
   let editingBillId = null;
@@ -1904,58 +1949,114 @@
   function renderChips() {
     const inner = $('chipStripInner');
     inner.innerHTML = '';
-    const me = currentUser?.uid;
-    const otherUid = otherMemberUid();
-    const otherName = otherUid ? memberLabel(otherUid) : null;
     const chips = [
-      { id: 'all', label: 'All' },
-      me ? { id: 'mine', label: 'Mine' } : null,
-      otherUid ? { id: 'other', label: otherName } : null,
-      { id: 'shared', label: 'Shared' },
+      { id: 'all',           label: 'All' },
       { id: 'utilities',     label: 'Utilities' },
       { id: 'subscriptions', label: 'Subs' },
       { id: 'credit_cards',  label: 'Cards' },
       { id: 'people',        label: 'Staff' },
       { id: 'other',         label: 'Other' },
-    ].filter(Boolean);
-    // 'other' chip clashes with member-other id; rename member chip id to 'member_other'
-    if (otherUid) {
-      const memberChip = chips.find(c => c.label === otherName);
-      if (memberChip) memberChip.id = 'member_other';
-    }
+    ];
     chips.forEach(c => {
       const btn = document.createElement('button');
-      btn.className = 'chip' + (activeFilter === c.id ? ' active' : '');
+      btn.className = 'chip' + (categoryFilter === c.id ? ' active' : '');
       btn.textContent = c.label;
-      btn.addEventListener('click', () => { activeFilter = c.id; renderChips(); renderFeed(); renderStackHeader(); });
+      btn.addEventListener('click', () => {
+        categoryFilter = c.id;
+        renderChips();
+        rerenderAfterFilterChange();
+      });
       inner.appendChild(btn);
     });
   }
 
+  function renderStatusSegment() {
+    const el = $('statusSegment');
+    el.innerHTML = '';
+    [
+      { id: 'active',    label: 'Active' },
+      { id: 'paused',    label: 'Paused' },
+      { id: 'cancelled', label: 'Cancelled' },
+    ].forEach(o => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.role = 'tab';
+      b.className = statusFilter === o.id ? 'active' : '';
+      b.textContent = o.label;
+      b.addEventListener('click', () => {
+        statusFilter = o.id;
+        renderStatusSegment();
+        rerenderAfterFilterChange();
+      });
+      el.appendChild(b);
+    });
+  }
+
+  function renderOwnerSegment() {
+    const el = $('ownerSegment');
+    el.innerHTML = '';
+    const me = currentUser?.uid;
+    const otherUid = otherMemberUid();
+    const opts = [
+      { id: 'all',    label: 'All' },
+      me ? { id: 'mine', label: 'Mine' } : null,
+      { id: 'shared', label: 'Shared' },
+      otherUid ? { id: 'other', label: memberLabel(otherUid) } : null,
+    ].filter(Boolean);
+    opts.forEach(o => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.role = 'tab';
+      b.className = ownerFilter === o.id ? 'active' : '';
+      b.textContent = o.label;
+      b.addEventListener('click', () => {
+        ownerFilter = o.id;
+        renderOwnerSegment();
+        rerenderAfterFilterChange();
+      });
+      el.appendChild(b);
+    });
+  }
+
+  function rerenderAfterFilterChange() {
+    renderFeed();
+    renderStackHeader();
+  }
+
+  // Owner + category + search composition. Status is intentionally NOT
+  // applied here — renderFeed adds it on top, so the month-summary and
+  // recently-paid sections (which also call applyFilter) stay agnostic
+  // to the active status tab. A bill paid + cancelled (one-time + remove)
+  // still belongs in those sections.
   function applyFilter(list) {
     const me = currentUser?.uid;
     const otherUid = otherMemberUid();
-    const filtered = list.filter(b => {
-      if (activeFilter === 'all') return true;
-      if (activeFilter === 'mine')   return b.owner === me;
-      if (activeFilter === 'shared') return b.owner === 'shared';
-      if (activeFilter === 'member_other') return b.owner === otherUid;
-      // category filters
-      const cat = b.cat || b.category;
-      return cat === activeFilter;
-    });
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return filtered;
-    return filtered.filter(b => {
-      const cat = b.cat || b.category || 'other';
-      const haystack = [
-        b.name || '',
-        CATEGORIES[cat]?.label || '',
-        b.notes || '',
-        b.owner === 'shared' ? 'shared' : memberLabel(b.owner),
-        String(b.amount || ''),
-      ].join(' ').toLowerCase();
-      return haystack.includes(q);
+    return list.filter(b => {
+      // Owner
+      if (ownerFilter !== 'all') {
+        if (ownerFilter === 'mine'   && b.owner !== me)        return false;
+        if (ownerFilter === 'shared' && b.owner !== 'shared')  return false;
+        if (ownerFilter === 'other'  && b.owner !== otherUid)  return false;
+      }
+      // Category
+      if (categoryFilter !== 'all') {
+        const cat = b.cat || b.category || 'other';
+        if (cat !== categoryFilter) return false;
+      }
+      // Search
+      if (q) {
+        const cat = b.cat || b.category || 'other';
+        const haystack = [
+          b.name || '',
+          CATEGORIES[cat]?.label || '',
+          b.notes || '',
+          b.owner === 'shared' ? 'shared' : memberLabel(b.owner),
+          String(b.amount || ''),
+        ].join(' ').toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
     });
   }
 
@@ -2050,6 +2151,8 @@
       renderFeed();
       renderStackHeader();
       renderChips();
+      renderStatusSegment();
+      renderOwnerSegment();
     }, (err) => {
       console.error('[bills] snapshot failed', err);
     });
@@ -2058,7 +2161,10 @@
   function renderFeed() {
     const feed = $('feed');
     feed.innerHTML = '';
-    const visible = applyFilter(bills.filter(b => b.status !== 'cancelled'))
+    // applyFilter handles owner/category/search; status is applied here
+    // (renderFeed-only) so summary + recent stay status-agnostic.
+    const visible = applyFilter(bills)
+      .filter(b => (b.status || 'active') === statusFilter)
       .sort((a, b) => {
         const da = dateFromBill(a.nextDue);
         const dbd = dateFromBill(b.nextDue);
@@ -2078,7 +2184,7 @@
       } else if (searchQuery.trim()) {
         empty.textContent = `No bills match "${searchQuery.trim()}".`;
       } else {
-        empty.textContent = 'Nothing matches this filter.';
+        empty.textContent = `No ${statusFilter} bills match these filters.`;
       }
       feed.appendChild(empty);
     } else {
@@ -2918,7 +3024,9 @@
       if (inviteTicker) { clearInterval(inviteTicker); inviteTicker = null; }
       currentHouseholdId = null; currentHousehold = null; bills = [];
       onboardingMode = null;
-      activeFilter = 'all';
+      categoryFilter = 'all';
+      statusFilter   = 'active';
+      ownerFilter    = 'all';
       recentExpanded = false;
       closeSearchBar();
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
