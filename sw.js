@@ -1,7 +1,7 @@
 // BillBud service worker — minimal shell cache for MVP Shell.
 // Phase 2 will tighten the caching strategy.
 
-const VERSION = "v0.3.9";
+const VERSION = "v0.3.10";
 const SHELL_CACHE = `billbud-shell-${VERSION}`;
 const SHELL_FILES = [
   "/",

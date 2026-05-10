@@ -8,6 +8,19 @@ follow to keep them consistent. Audit this before changing any
 
 - **One Firestore project**, one Firestore database, served via the
   modular SDK on the CDN (no build step).
+
+### Listener idempotence
+
+`subscribeToHousehold(uid)` fires the household snapshot on EVERY
+household-doc change (member profile update, invite-code regen, member
+add/remove). Each tick eventually calls `subscribeToBills(hid)`. To
+avoid tearing down and re-creating the bills listener on unrelated
+ticks (which clears `bills = []` and causes a brief flicker),
+`subscribeToBills(hid)` early-returns if `subscribedBillsHid === hid`
+and a live unsubscribe handle exists. The `subscribedBillsHid` is
+cleared everywhere `unsubBills` is cleared (4 sites — sign-out,
+household-snap empty case, replacement, and the teardown inside
+`subscribeToBills` itself).
 - **Per-household isolation**: bills live at
   `/households/{hid}/bills/{billId}`. Security rules require the caller
   be in `/households/{hid}.members`.

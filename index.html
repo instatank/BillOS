@@ -1600,6 +1600,7 @@
   let bills = [];
   let unsubHousehold = null;
   let unsubBills = null;
+  let subscribedBillsHid = null; // skip resubscribing on unrelated household snapshot ticks
   let inviteTicker = null;
   let onboardingMode = null; // 'choice' | 'created' | 'join' — overrides default routing post-create
   // Filter state — chip row carries owner+category as a single value
@@ -1657,7 +1658,7 @@
   // ───────────────────────────────────────────────────────────────────
   function subscribeToHousehold(uid) {
     if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
-    if (unsubBills) { unsubBills(); unsubBills = null; }
+    if (unsubBills) { unsubBills(); unsubBills = null; subscribedBillsHid = null; }
     show('loading');
     currentHouseholdId = null; currentHousehold = null; bills = [];
 
@@ -1666,7 +1667,7 @@
       if (snap.empty) {
         currentHouseholdId = null;
         currentHousehold = null;
-        if (unsubBills) { unsubBills(); unsubBills = null; }
+        if (unsubBills) { unsubBills(); unsubBills = null; subscribedBillsHid = null; }
         if (onboardingMode === 'join') {
           show('join');
         } else {
@@ -1957,7 +1958,7 @@
   }
 
   function renderStackHeader() {
-    const visible = bills.filter(b => b.status === 'active');
+    const visible = bills.filter(b => (b.status || 'active') === 'active');
     const filtered = applyFilter(visible);
     const total = filtered.reduce((s, b) => s + (Number(b.amount) || 0), 0);
     $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${fmtINR(total)} this cycle`;
@@ -2135,8 +2136,13 @@
   // Bills: subscribe + render feed
   // ───────────────────────────────────────────────────────────────────
   function subscribeToBills(hid) {
-    if (unsubBills) { unsubBills(); unsubBills = null; }
+    // Skip if already subscribed to this household. Otherwise every household
+    // snapshot tick (member profile change, invite code regen, etc.) triggers
+    // a redundant resubscribe that clears the bills array and flickers the UI.
+    if (subscribedBillsHid === hid && unsubBills) return;
+    if (unsubBills) { unsubBills(); unsubBills = null; subscribedBillsHid = null; }
     bills = [];
+    subscribedBillsHid = hid;
     const billsRef = collection(db, 'households', hid, 'bills');
     unsubBills = onSnapshot(billsRef, (snap) => {
       bills = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2146,6 +2152,9 @@
       renderStatusSegment();
     }, (err) => {
       console.error('[bills] snapshot failed', err);
+      // Surface so a silent permission-denied (rules misconfig) is visible
+      // to the user instead of leaving them on a frozen feed.
+      showToast(`Couldn't load bills: ${err.message || err.code}`, { duration: 6000 });
     });
   }
 
@@ -3046,13 +3055,19 @@
       subscribeToHousehold(user.uid);
     } else {
       if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
-      if (unsubBills) { unsubBills(); unsubBills = null; }
+      if (unsubBills) { unsubBills(); unsubBills = null; subscribedBillsHid = null; }
       if (inviteTicker) { clearInterval(inviteTicker); inviteTicker = null; }
       currentHouseholdId = null; currentHousehold = null; bills = [];
       onboardingMode = null;
       activeFilter = 'all';
       statusFilter = 'active';
       recentExpanded = false;
+      // Hygienic state reset so a re-login lands clean (these don't break
+      // anything if left over today, but stale ids would surface fast as
+      // bugs the moment new flows reference them).
+      editingBillId      = null;
+      activeDetailBillId = null;
+      payState           = null;
       closeSearchBar();
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
       if (!dt.modal.hidden) closeModal(dt.overlay, dt.modal);
