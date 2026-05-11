@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (last updated mid-build, SW v0.4.10)
+## Where things stand (last updated mid-build, SW v0.4.11)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,7 +17,7 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.10`. Use `v0.4.11`, etc.
+  clients evict the old shell. Currently `v0.4.11`. Use `v0.4.12`, etc.
 
 ## What's built
 
@@ -82,9 +82,13 @@ of iteration. Highlights:
 
 ## Next up / open ideas (not started)
 
-1. **PWA polish** — real app icons (`/icons/icon-192.png`, `icon-512.png`
-   are placeholders), tighten the SW caching strategy, verify install-to-
-   home-screen. (This was original "sub-task 7".)
+1. **PWA polish** — icons are wired up (`/icons/icon-{192,512}.png`,
+   `icon-maskable-512.png`, `apple-touch-icon-180.png`, `/favicon.png`,
+   `/icons/icon.svg`) but they're a *temporary* in-house mark (the green
+   "B"+sprout) — AA has a real design to drop in later (`icons/icon-source.png`
+   → re-export all sizes, crop the white border, regen maskable, bump SW).
+   Still to do: tighten the SW caching strategy, verify install-to-home-screen
+   on iOS. (This was original "sub-task 7".)
 2. **Reminders** — upcoming-due summary + push notifications for bills due
    in 1–3 days.
 3. **Settings menu** — edit household name, leave household, manage your
