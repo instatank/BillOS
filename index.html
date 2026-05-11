@@ -336,16 +336,33 @@
   /* ─── Stack home: header ──────────────────────────────────────── */
   .stack-header {
     padding: 16px 16px 12px;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; gap: 8px;
     border-bottom: 1px solid var(--border-soft);
   }
-  .stack-title-block { min-width: 0; }
+  .stack-title-block { flex: 0 0 auto; min-width: 0; }
   .stack-title {
     font-family: var(--font-display); font-size: 26px; font-weight: 700;
     color: var(--text); letter-spacing: -0.5px; line-height: 1;
   }
-  .stack-substat { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
-  .stack-header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  /* Month stepper now lives centered in the top header row */
+  .stack-month-nav {
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .stack-month-nav .month-nav-btn {
+    width: 28px; height: 28px; border-radius: 999px;
+    border: 1px solid var(--border-soft); background: var(--bg-elev-1);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text); cursor: pointer; font-size: 13px; flex-shrink: 0;
+    transition: background .12s, opacity .12s;
+  }
+  .stack-month-nav .month-nav-btn:hover { background: var(--bg-elev-2); }
+  .stack-month-nav .month-nav-btn:active { opacity: 0.7; }
+  .stack-month-nav .month-nav-label {
+    font-family: var(--font-display); font-size: 17px; font-weight: 600;
+    color: var(--text); text-align: center; white-space: nowrap;
+  }
+  .stack-header-actions { flex: 0 0 auto; display: flex; gap: 6px; }
 
   /* ─── Search row + filter chip strip ──────────────────────────── */
   .search-row {
@@ -394,11 +411,21 @@
     background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   }
 
-  /* Month navigation strip */
+  /* Controls strip below the header: view toggle (left), the active-bills
+     substat (dead-centered), and the Today link (right, only when you've
+     navigated off the current month). The month stepper itself lives up
+     in the .stack-header now. */
   .month-nav {
-    display: flex; align-items: center; justify-content: center;
-    gap: 8px; padding: 2px 16px 8px;
     position: relative;
+    display: flex; align-items: center;
+    padding: 4px 16px 8px; min-height: 30px;
+  }
+  .month-nav-substat {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: 12px; color: var(--text-dim);
+    max-width: calc(100% - 130px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-align: center; pointer-events: none;
   }
   .view-toggle {
     display: inline-flex; gap: 2px; padding: 2px;
@@ -458,21 +485,8 @@
   .cal-day-head .cal-day-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text); }
   .cal-day-head .cal-day-clear { background: transparent; border: 0; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
   .cal-day-head .cal-day-clear:hover { background: var(--bg-elev-2); }
-  .month-nav-btn {
-    width: 30px; height: 30px; border-radius: 999px;
-    border: 1px solid var(--border-soft); background: var(--bg-elev-1);
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--text); cursor: pointer; font-size: 13px;
-    transition: background .12s, opacity .12s;
-  }
-  .month-nav-btn:hover { background: var(--bg-elev-2); }
-  .month-nav-btn:active { opacity: 0.7; }
-  .month-nav-label {
-    font-family: var(--font-display); font-size: 16px; font-weight: 600;
-    color: var(--text); min-width: 120px; text-align: center;
-  }
   .month-nav-today {
-    position: absolute; right: 16px;
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
     font-size: 12px; font-weight: 600; color: var(--accent);
     cursor: pointer; background: transparent; border: 0; padding: 4px 6px;
     border-radius: 6px;
@@ -1251,7 +1265,11 @@
     <div class="stack-header">
       <div class="stack-title-block">
         <div class="stack-title">Bills</div>
-        <div id="stackSubstat" class="stack-substat">— bills · ₹0 this cycle</div>
+      </div>
+      <div class="stack-month-nav">
+        <button id="monthPrev" class="month-nav-btn" aria-label="Previous month" type="button">‹</button>
+        <div id="monthNavLabel" class="month-nav-label">—</div>
+        <button id="monthNext" class="month-nav-btn" aria-label="Next month" type="button">›</button>
       </div>
       <div class="stack-header-actions">
         <button id="btnMenu" class="btn-icon-circle" aria-label="Menu">≡</button>
@@ -1312,9 +1330,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
         </button>
       </div>
-      <button id="monthPrev" class="month-nav-btn" aria-label="Previous month" type="button">‹</button>
-      <div id="monthNavLabel" class="month-nav-label">—</div>
-      <button id="monthNext" class="month-nav-btn" aria-label="Next month" type="button">›</button>
+      <div id="stackSubstat" class="month-nav-substat">— bills · ₹0 this cycle</div>
       <button id="monthToday" class="month-nav-today hidden" type="button">Today</button>
     </div>
 
@@ -2205,7 +2221,10 @@
   }
   const SPILL_DAYS = 7; // how many leading days of next month to show
   function renderMonthNav() {
-    $('monthNavLabel').textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+    // Just the 3-letter month (Jan, Aug, …); append the year only when it
+    // differs from the current year so cross-year browsing isn't ambiguous.
+    const curYear = new Date().getFullYear();
+    $('monthNavLabel').textContent = MONTH_NAMES[viewMonth] + (viewYear !== curYear ? ` ${viewYear}` : '');
     $('monthToday').classList.toggle('hidden', isViewingCurrentMonth());
   }
   function shiftMonth(delta) {
