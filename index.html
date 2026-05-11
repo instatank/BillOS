@@ -443,6 +443,12 @@
   .cal-cell-dots { display: flex; gap: 2px; justify-content: center; min-height: 4px; }
   .cal-dot { width: 4px; height: 4px; border-radius: 50%; }
   .cal-cell.selected .cal-dot { background: var(--accent-ink) !important; }
+  /* Spillover cells = the first days of next month, shown near month-end */
+  .cal-cell.cal-cell-spill { opacity: 0.5; }
+  .cal-cell.cal-cell-spill.selected { opacity: 1; }
+  .cal-spill-note {
+    padding: 6px 16px 2px; font-size: 11px; color: var(--text-muted); text-align: center;
+  }
 
   /* Day-detail header inside the feed when a calendar day is selected */
   .cal-day-head {
@@ -1315,6 +1321,7 @@
     <div id="calendarGrid" class="cal-grid hidden">
       <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
       <div id="calDays" class="cal-days"></div>
+      <div id="calSpillNote" class="cal-spill-note hidden"></div>
     </div>
 
     <section id="monthSummary" class="month-summary hidden" aria-label="Payments this month">
@@ -2181,6 +2188,22 @@
     const now = new Date();
     return viewMonth === now.getMonth() && viewYear === now.getFullYear();
   }
+  function nextMonthOf(m, y) {
+    return m === 11 ? { m: 0, y: y + 1 } : { m: m + 1, y };
+  }
+  // True when *today* is in the final 3 days of its month. Used (only when
+  // also viewing the current month) to spill the next month's first 7 days
+  // into the list/grid — bills cluster at month start, so a heads-up on
+  // May 30 about June 1–7 is worth a lot.
+  function inMonthEndSpilloverWindow() {
+    const now = new Date();
+    const daysInThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return now.getDate() >= daysInThisMonth - 2;
+  }
+  function spilloverActive() {
+    return isViewingCurrentMonth() && inMonthEndSpilloverWindow();
+  }
+  const SPILL_DAYS = 7; // how many leading days of next month to show
   function renderMonthNav() {
     $('monthNavLabel').textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
     $('monthToday').classList.toggle('hidden', isViewingCurrentMonth());
@@ -2254,26 +2277,51 @@
       e.className = 'cal-cell empty';
       calDaysEl.appendChild(e);
     }
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayBills = byDay[dateStr] || [];
-      const cellDate = new Date(year, month, day);
+    const makeCell = (y, mo, day, dotBills, isSpill) => {
+      const dateStr = `${y}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const cell = document.createElement('div');
-      cell.className = 'cal-cell';
+      cell.className = 'cal-cell' + (isSpill ? ' cal-cell-spill' : '');
       if (dateStr === todayStr)    cell.classList.add('today');
       if (dateStr === selectedDay) cell.classList.add('selected');
-      if (withOverdue && dayBills.length && startOfDay(cellDate) < todayStart) cell.classList.add('overdue');
-      const dots = dayBills.slice(0, 4).map(b => {
+      if (!isSpill && withOverdue && dotBills.length && startOfDay(new Date(y, mo, day)) < todayStart) cell.classList.add('overdue');
+      const dots = dotBills.slice(0, 4).map(b => {
         const c = b.cat || b.category || 'other';
         return `<span class="cal-dot" style="background: var(--cat-${c});"></span>`;
       }).join('');
       cell.innerHTML = `<span class="cal-cell-num">${day}</span><span class="cal-cell-dots">${dots}</span>`;
+      cell.title = `${day} ${MONTH_NAMES[mo]}`;
       cell.addEventListener('click', () => {
         selectedDay = (selectedDay === dateStr) ? null : dateStr;
         renderCalendar();
         renderFeed();
       });
       calDaysEl.appendChild(cell);
+    };
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      makeCell(year, month, day, byDay[dateStr] || [], false);
+    }
+
+    // Month-end spillover: render the first SPILL_DAYS days of next month
+    // as dimmed cells. They flow into the trailing cells of the last row
+    // and overflow into a new row as needed (standard calendar overflow).
+    const spillNote = $('calSpillNote');
+    if (spilloverActive()) {
+      const { m: nm, y: ny } = nextMonthOf(month, year);
+      const byDaySpill = {};
+      candidate.forEach(b => {
+        const d = dateFromBill(b.nextDue);
+        if (!d || d.getMonth() !== nm || d.getFullYear() !== ny || d.getDate() > SPILL_DAYS) return;
+        (byDaySpill[d.getDate()] ||= []).push(b);
+      });
+      for (let day = 1; day <= SPILL_DAYS; day++) {
+        makeCell(ny, nm, day, byDaySpill[day] || [], true);
+      }
+      spillNote.textContent = `Showing early ${MONTH_NAMES[nm]} too — bills cluster at month start.`;
+      spillNote.classList.remove('hidden');
+    } else {
+      spillNote.classList.add('hidden');
     }
   }
 
@@ -2513,7 +2561,20 @@
     noDate.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     const showNoDate = viewingCurrent ? noDate : [];
 
-    const totalShown = overdue.length + inMonth.length + showNoDate.length;
+    // Month-end spillover: bills due in the first SPILL_DAYS of next month,
+    // surfaced only in the last 3 days of the current month (payments
+    // cluster at month start, so this is the heads-up that matters).
+    let spillBills = [];
+    let spillMonthName = '';
+    if (spilloverActive()) {
+      const { m: nm, y: ny } = nextMonthOf(viewMonth, viewYear);
+      spillMonthName = MONTH_NAMES[nm];
+      spillBills = candidate
+        .filter(b => { const d = dateFromBill(b.nextDue); return d && d.getMonth() === nm && d.getFullYear() === ny && d.getDate() <= SPILL_DAYS; })
+        .sort(byDue);
+    }
+
+    const totalShown = overdue.length + inMonth.length + showNoDate.length + spillBills.length;
     if (totalShown === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty';
@@ -2537,13 +2598,14 @@
       };
       addSection('Overdue', overdue, 'is-overdue');
       if (inMonth.length) {
-        if (overdue.length || showNoDate.length) {
+        if (overdue.length || showNoDate.length || spillBills.length) {
           addSection(`${MONTH_NAMES[viewMonth]} ${viewYear}`, inMonth, '');
         } else {
           inMonth.forEach(b => feed.appendChild(billCardEl(b)));
         }
       }
       addSection('No due date', showNoDate, '');
+      addSection(`Coming up · early ${spillMonthName}`, spillBills, '');
     }
 
     renderMonthNav();
