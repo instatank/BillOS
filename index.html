@@ -715,14 +715,22 @@
   .cat-pick .cat-pick-label { font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; }
   .cat-pick .cat-chip { width: 26px; height: 26px; border-radius: 999px; }
 
-  /* amount input with ₹ prefix and live preview */
+  /* amount input with a tappable currency-toggle prefix */
   .amount-wrap { position: relative; }
-  .amount-wrap .amount-prefix {
-    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-    color: var(--text-dim); font-size: 17px;
+  .amount-cur-btn {
+    position: absolute; left: 5px; top: 50%; transform: translateY(-50%);
+    background: var(--bg-elev-1); border: 1px solid var(--border-soft);
+    border-radius: 8px; padding: 5px 7px;
+    font-size: 14px; font-weight: 700; color: var(--text);
+    cursor: pointer; line-height: 1;
+    display: inline-flex; align-items: center; gap: 3px;
+    transition: background .12s, opacity .12s;
   }
+  .amount-cur-btn:hover { background: var(--bg-elev-2); }
+  .amount-cur-btn:active { opacity: 0.7; }
+  .amount-cur-btn .cur-caret { font-size: 8px; opacity: 0.45; }
   .amount-wrap .amount-input {
-    padding-left: 30px; font-family: var(--font-num); font-weight: 600;
+    padding-left: 50px; font-family: var(--font-num); font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
   .amount-wrap .amount-preview {
@@ -1250,8 +1258,8 @@
         <div class="field">
           <label class="field-label" for="abAmount">Amount <span style="color: var(--danger);">*</span></label>
           <div class="amount-wrap">
-            <span class="amount-prefix">₹</span>
-            <input id="abAmount" class="input amount-input" type="text" inputmode="numeric" placeholder="0" />
+            <button type="button" id="abCurrencyBtn" class="amount-cur-btn" aria-label="Switch currency">₹<span class="cur-caret" aria-hidden="true">▾</span></button>
+            <input id="abAmount" class="input amount-input" type="text" inputmode="decimal" placeholder="0" autocomplete="off" />
           </div>
         </div>
         <div class="field">
@@ -1507,7 +1515,28 @@
     const restGrouped = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
     return (n < 0 ? '-' : '') + restGrouped + ',' + last3;
   }
-  function fmtINR(n) { return '₹' + indianGroup(n); }
+  // ─── Multi-currency money formatting ──────────────────────────────
+  // Bills carry a `currency` field: 'INR' (default / home currency) or
+  // 'USD'. INR renders with the ₹ symbol + Indian comma grouping, whole
+  // rupees only. USD renders with $ + standard thousands grouping, and
+  // 2 decimals only when the amount is fractional ($9.99 vs $50).
+  function billCurrency(b) { return (b && b.currency === 'USD') ? 'USD' : 'INR'; }
+  function moneySymbol(currency) { return currency === 'USD' ? '$' : '₹'; }
+  function groupStd(intStr) { return String(intStr).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function moneyBody(amount, currency) {
+    const n = Math.abs(Number(amount) || 0);
+    if (currency === 'USD') {
+      const cents = Math.round(n * 100);
+      const whole = Math.floor(cents / 100);
+      const frac  = cents % 100;
+      return frac === 0 ? groupStd(whole) : `${groupStd(whole)}.${String(frac).padStart(2, '0')}`;
+    }
+    return indianGroup(Math.round(n));
+  }
+  function fmtMoney(amount, currency) { return moneySymbol(currency) + moneyBody(amount, currency); }
+  function moneyHtml(amount, currency) {
+    return `<span class="sym">${moneySymbol(currency)}</span>${moneyBody(amount, currency)}`;
+  }
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function dateFromBill(value) {
@@ -1960,8 +1989,16 @@
   function renderStackHeader() {
     const visible = bills.filter(b => (b.status || 'active') === 'active');
     const filtered = applyFilter(visible);
-    const total = filtered.reduce((s, b) => s + (Number(b.amount) || 0), 0);
-    $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${fmtINR(total)} this cycle`;
+    // Totals are kept per-currency; we can't add ₹ and $ together.
+    const byCur = {};
+    filtered.forEach(b => {
+      const c = billCurrency(b);
+      byCur[c] = (byCur[c] || 0) + (Number(b.amount) || 0);
+    });
+    const totalStr = Object.keys(byCur).length
+      ? Object.keys(byCur).sort().map(c => fmtMoney(byCur[c], c)).join(' · ')
+      : fmtMoney(0, 'INR');
+    $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${totalStr} this cycle`;
   }
 
   function renderChips() {
@@ -2048,6 +2085,7 @@
         b.notes || '',
         b.owner === 'shared' ? 'shared' : memberLabel(b.owner),
         String(b.amount || ''),
+        billCurrency(b),
       ].join(' ').toLowerCase();
       return haystack.includes(q);
     });
@@ -2232,31 +2270,40 @@
     }
     summaryEl.classList.remove('hidden');
 
-    // Bucket by category, sum amounts
-    const byCat = {};
-    let total = 0;
+    // Bucket by currency, then by category within each currency. We can't
+    // sum ₹ and $ together, so the headline shows per-currency totals and
+    // the category breakdown bar covers the primary (largest-total)
+    // currency only; other currencies appear as a single legend line.
+    const byCur = {}; // cur -> { total, byCat: { cat -> amt } }
     paidThisMonth.forEach(b => {
+      const cur = billCurrency(b);
       const cat = b.cat || b.category || 'other';
       const amt = Number(b.lastPaidAmount != null ? b.lastPaidAmount : b.amount) || 0;
-      byCat[cat] = (byCat[cat] || 0) + amt;
-      total += amt;
+      if (!byCur[cur]) byCur[cur] = { total: 0, byCat: {} };
+      byCur[cur].total += amt;
+      byCur[cur].byCat[cat] = (byCur[cur].byCat[cat] || 0) + amt;
     });
+    const currencies = Object.keys(byCur).sort((a, b) => byCur[b].total - byCur[a].total);
+    const primary = currencies[0];
 
-    summaryAmountEl.innerHTML = `<span class="sym">₹</span>${indianGroup(total)}`;
+    summaryAmountEl.innerHTML = currencies
+      .map(c => `<span class="sym">${moneySymbol(c)}</span>${moneyBody(byCur[c].total, c)}`)
+      .join('<span style="color: var(--text-muted); margin: 0 8px; font-weight: 500;">·</span>');
     summaryCountEl.textContent = `across ${paidThisMonth.length} ${paidThisMonth.length === 1 ? 'bill' : 'bills'}`;
     summaryMonthEl.textContent = `${MONTH_NAMES[m]} ${y}`;
 
-    // Stacked bar — one segment per category that has spending, in CAT_ORDER
+    // Category bar + legend — primary currency only
+    const prim = byCur[primary];
     summaryBarEl.innerHTML = '';
     summaryLegendEl.innerHTML = '';
     CAT_ORDER.forEach(c => {
-      const amt = byCat[c];
+      const amt = prim.byCat[c];
       if (!amt) return;
       const seg = document.createElement('div');
       seg.className = 'month-summary-bar-seg';
-      seg.style.width = `${(amt / total) * 100}%`;
+      seg.style.width = `${(amt / prim.total) * 100}%`;
       seg.style.background = `var(--cat-${c})`;
-      seg.title = `${CATEGORIES[c].label}: ${fmtINR(amt)}`;
+      seg.title = `${CATEGORIES[c].label}: ${fmtMoney(amt, primary)}`;
       summaryBarEl.appendChild(seg);
 
       const item = document.createElement('span');
@@ -2264,7 +2311,18 @@
       item.innerHTML = `
         <span class="swatch" style="background: var(--cat-${c});"></span>
         <span>${CATEGORIES[c].label}</span>
-        <span class="amt">${fmtINR(amt)}</span>
+        <span class="amt">${fmtMoney(amt, primary)}</span>
+      `;
+      summaryLegendEl.appendChild(item);
+    });
+    // Other currencies — total only, no category breakdown
+    currencies.slice(1).forEach(c => {
+      const item = document.createElement('span');
+      item.className = 'month-summary-legend-item';
+      item.innerHTML = `
+        <span class="swatch" style="background: var(--text-muted);"></span>
+        <span>Other (${c})</span>
+        <span class="amt">${fmtMoney(byCur[c].total, c)}</span>
       `;
       summaryLegendEl.appendChild(item);
     });
@@ -2325,7 +2383,7 @@
     row.innerHTML = `
       <span class="cat-dot cat-${cat}"></span>
       <span class="recent-name${removed ? ' is-removed' : ''}">${escapeHtml(b.name || 'Untitled')}</span>
-      <span class="recent-amount">${fmtINR(amount || 0)}</span>
+      <span class="recent-amount">${fmtMoney(amount || 0, billCurrency(b))}</span>
       <span class="recent-date">${escapeHtml(dateLabel)}</span>
     `;
     row.addEventListener('click', () => openDetail(b.id));
@@ -2363,7 +2421,7 @@
       </div>
       <div class="bill-row-main">
         <div class="bill-name">${escapeHtml(b.name || 'Untitled')}</div>
-        <span class="amount" style="font-size: 20px; font-weight: 700; letter-spacing: -0.2px;"><span class="sym">₹</span>${indianGroup(b.amount)}</span>
+        <span class="amount" style="font-size: 20px; font-weight: 700; letter-spacing: -0.2px;">${moneyHtml(b.amount, billCurrency(b))}</span>
       </div>
       <div class="bill-row-foot">
         <div class="owner-mini">
@@ -2401,8 +2459,14 @@
     nextDue:   $('abNextDue'),
     mode:      $('abMode'),
     notes:     $('abNotes'),
+    currencyBtn: $('abCurrencyBtn'),
   };
   let abState = null;
+
+  function renderCurrencyBtn() {
+    ab.currencyBtn.innerHTML = `${moneySymbol(abState.currency)}<span class="cur-caret" aria-hidden="true">▾</span>`;
+    ab.amount.placeholder = abState.currency === 'USD' ? '0.00' : '0';
+  }
 
   function renderOwnerPicker() {
     const container = ab.owner;
@@ -2465,6 +2529,7 @@
     ab.cat.value     = abState.cat;
     ab.nextDue.value = abState.nextDueYMD || '';
     ab.notes.value   = abState.notes || '';
+    renderCurrencyBtn();
     renderOwnerPicker();
     renderModePicker();
     abValidate();
@@ -2480,6 +2545,7 @@
     abState = {
       name:        prefill?.name || '',
       amount:      prefill ? Number(prefill.amount || 0) : 0,
+      currency:    (prefill && prefill.currency === 'USD') ? 'USD' : 'INR',
       freq:        prefill?.freq || prefill?.frequency || 'monthly',
       cat:         prefill?.cat  || prefill?.category  || 'utilities',
       owner:       prefill?.owner || 'shared',
@@ -2504,10 +2570,17 @@
   ab.overlay.addEventListener('click', closeAddBill);
   ab.name.addEventListener('input', () => { abState.name = ab.name.value; abValidate(); });
   ab.amount.addEventListener('input', () => {
-    const cleaned = ab.amount.value.replace(/[^0-9]/g, '');
+    // Allow digits + a single decimal point (USD bills can have cents).
+    let cleaned = ab.amount.value.replace(/[^0-9.]/g, '');
+    const dot = cleaned.indexOf('.');
+    if (dot !== -1) cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
     if (cleaned !== ab.amount.value) ab.amount.value = cleaned;
     abState.amount = Number(cleaned) || 0;
     abValidate();
+  });
+  ab.currencyBtn.addEventListener('click', () => {
+    abState.currency = abState.currency === 'USD' ? 'INR' : 'USD';
+    renderCurrencyBtn();
   });
   ab.freq.addEventListener('change',    () => { abState.freq = ab.freq.value; abValidate(); });
   ab.cat.addEventListener('change',     () => { abState.cat = ab.cat.value; });
@@ -2517,7 +2590,7 @@
   async function submitAddBill() {
     if (!currentUser || !currentHouseholdId) { showAbError('You need to be in a household to add bills.'); return; }
     if (!abState.name.trim()) { showAbError('Give the bill a name.'); ab.name.focus(); return; }
-    if (!(Number(abState.amount) > 0)) { showAbError('Enter an amount in rupees.'); ab.amount.focus(); return; }
+    if (!(Number(abState.amount) > 0)) { showAbError(`Enter an amount in ${abState.currency === 'USD' ? 'dollars' : 'rupees'}.`); ab.amount.focus(); return; }
 
     ab.submit.disabled = true;
     const original = ab.submit.textContent;
@@ -2534,6 +2607,7 @@
         const newAmt  = Number(abState.amount);
         if (newName            !== orig.name)       patch.name    = newName;
         if (newAmt             !== Number(orig.amount || 0)) patch.amount  = newAmt;
+        if (abState.currency   !== orig.currency)   patch.currency = abState.currency;
         if (abState.freq       !== orig.freq)       patch.freq    = abState.freq;
         if (abState.cat        !== orig.cat)        patch.cat     = abState.cat;
         if (abState.owner      !== orig.owner)      patch.owner   = abState.owner;
@@ -2559,6 +2633,7 @@
         await setDoc(newRef, {
           name:        abState.name.trim(),
           amount:      Number(abState.amount),
+          currency:    abState.currency || 'INR',
           freq:        abState.freq,
           cat:         abState.cat,
           owner:       abState.owner,
@@ -2634,7 +2709,7 @@
     dt.name.textContent = b.name || 'Untitled';
     dt.name.classList.toggle('is-cancelled', b.status === 'cancelled');
 
-    dt.amount.innerHTML = `<span class="sym">₹</span>${indianGroup(b.amount || 0)}`;
+    dt.amount.innerHTML = moneyHtml(b.amount || 0, billCurrency(b));
     dt.meta.textContent = `${FREQ_LABEL[freq] || freq} · next ${dueDate ? fmtDate(dueDate) : '—'}`;
 
     if (b.status === 'paused') {
@@ -2851,6 +2926,7 @@
       freq,
       isOneTime,
       amount: Number(bill.amount || 0),
+      currency: billCurrency(bill),
       currentNextDue: currentNext,
       paidYMD: todayYMD,
       note: '',
@@ -2862,7 +2938,7 @@
     pay.submit.disabled = false;
     pay.submit.textContent = 'Mark paid';
     pay.name.textContent = bill.name || 'Untitled';
-    pay.amount.innerHTML = `<span class="sym">₹</span>${indianGroup(payState.amount)}`;
+    pay.amount.innerHTML = moneyHtml(payState.amount, payState.currency);
     pay.date.value = todayYMD;
     pay.note.value = '';
 

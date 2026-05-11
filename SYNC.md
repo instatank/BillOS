@@ -117,6 +117,28 @@ Every bill mutation goes through `auditMeta()`, which stamps:
 Plus `createdAt` and `createdBy` on initial creation. No events
 sub-collection yet — V2 if we need a full audit log.
 
+## Currency
+
+Bills carry a `currency` field: `'INR'` (default / home currency) or
+`'USD'`. Missing field = INR (`billCurrency(b)` normalises). `amount`
+is stored as a plain Number — whole rupees for INR, possibly fractional
+for USD ($9.99). Rendering goes through `fmtMoney(amount, currency)` /
+`moneyHtml(...)` everywhere an amount appears (bill cards, detail hero,
+pay sheet, recently-paid pills, stack substat, month summary).
+
+We never sum across currencies. The stack-header substat and the
+month-summary headline list per-currency totals joined with " · ". The
+month-summary category breakdown bar covers only the *primary*
+currency (largest total that month); other currencies appear as a
+single "Other (USD)" legend line with their total.
+
+`lastPaidAmount` is stored in the bill's currency at pay time — there's
+no separate currency on the payment record, it inherits from the bill.
+If a bill's currency is later changed, historical `lastPaidAmount`
+would be re-interpreted in the new currency. Acceptable for V1 (no
+payment ledger; currency changes rare). Revisit when the per-payment
+ledger lands.
+
 ## Cross-user verification (the actual gate)
 
 Before declaring a sync-touching change "done":
