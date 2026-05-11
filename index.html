@@ -397,9 +397,61 @@
   /* Month navigation strip */
   .month-nav {
     display: flex; align-items: center; justify-content: center;
-    gap: 12px; padding: 2px 16px 8px;
+    gap: 8px; padding: 2px 16px 8px;
     position: relative;
   }
+  .view-toggle {
+    display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--bg-elev-2); border: 1px solid var(--border-soft);
+    border-radius: 999px; flex-shrink: 0;
+  }
+  .view-toggle button {
+    width: 26px; height: 26px; padding: 0; border: 0; background: transparent;
+    border-radius: 999px; color: var(--text-dim); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .12s, color .12s;
+  }
+  .view-toggle button:hover { color: var(--text); }
+  .view-toggle button.active { background: var(--bg-elev-1); color: var(--text); box-shadow: 0 1px 0 var(--border-soft); }
+
+  /* Calendar grid */
+  .cal-grid { padding: 4px 12px 6px; }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 4px; }
+  .cal-weekdays span {
+    text-align: center; font-size: 10px; font-weight: 700;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-cell {
+    aspect-ratio: 1 / 1; border-radius: 9px;
+    background: transparent; border: 1px solid transparent;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 2px; cursor: pointer; position: relative;
+    transition: background .12s;
+  }
+  .cal-cell.empty { cursor: default; }
+  .cal-cell:not(.empty):hover { background: var(--bg-elev-2); }
+  .cal-cell.today    { background: var(--accent-soft); border-color: var(--accent-border); }
+  .cal-cell.overdue:not(.selected) {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+  }
+  .cal-cell.selected { background: var(--accent); border-color: var(--accent); }
+  .cal-cell-num { font-family: var(--font-num); font-size: 13px; font-weight: 600; color: var(--text); line-height: 1; }
+  .cal-cell.today .cal-cell-num    { color: var(--accent); }
+  .cal-cell.selected .cal-cell-num { color: var(--accent-ink); }
+  .cal-cell-dots { display: flex; gap: 2px; justify-content: center; min-height: 4px; }
+  .cal-dot { width: 4px; height: 4px; border-radius: 50%; }
+  .cal-cell.selected .cal-dot { background: var(--accent-ink) !important; }
+
+  /* Day-detail header inside the feed when a calendar day is selected */
+  .cal-day-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 12px 16px 6px;
+  }
+  .cal-day-head .cal-day-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text); }
+  .cal-day-head .cal-day-clear { background: transparent; border: 0; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  .cal-day-head .cal-day-clear:hover { background: var(--bg-elev-2); }
   .month-nav-btn {
     width: 30px; height: 30px; border-radius: 999px;
     border: 1px solid var(--border-soft); background: var(--bg-elev-1);
@@ -1246,10 +1298,23 @@
     </div>
 
     <div class="month-nav">
+      <div class="view-toggle" role="tablist" aria-label="View mode">
+        <button id="viewList" class="active" type="button" role="tab" aria-label="List view" title="List">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </button>
+        <button id="viewCal" type="button" role="tab" aria-label="Calendar view" title="Calendar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
+        </button>
+      </div>
       <button id="monthPrev" class="month-nav-btn" aria-label="Previous month" type="button">‹</button>
       <div id="monthNavLabel" class="month-nav-label">—</div>
       <button id="monthNext" class="month-nav-btn" aria-label="Next month" type="button">›</button>
       <button id="monthToday" class="month-nav-today hidden" type="button">Today</button>
+    </div>
+
+    <div id="calendarGrid" class="cal-grid hidden">
+      <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div id="calDays" class="cal-days"></div>
     </div>
 
     <section id="monthSummary" class="month-summary hidden" aria-label="Payments this month">
@@ -1265,7 +1330,7 @@
       <div id="monthSummaryLegend" class="month-summary-legend"></div>
     </section>
 
-    <hr class="feed-divider" />
+    <hr id="feedDivider" class="feed-divider" />
     <div id="feed" class="feed"></div>
 
     <section id="recentSection" class="recent-section hidden">
@@ -1687,6 +1752,8 @@
   // current calendar month. Overdue bills are pinned regardless.
   let viewMonth = new Date().getMonth();
   let viewYear  = new Date().getFullYear();
+  let viewMode  = 'list';   // 'list' | 'calendar'
+  let selectedDay = null;   // YYYY-MM-DD when a calendar day is picked, else null
   let searchQuery = '';
   let searchOpen = false;
   let editingBillId = null;
@@ -2123,6 +2190,7 @@
     while (m < 0)  { m += 12; y--; }
     while (m > 11) { m -= 12; y++; }
     viewMonth = m; viewYear = y;
+    selectedDay = null; // selection was for the old month
     renderMonthNav();
     renderFeed();
     renderStackHeader();
@@ -2131,6 +2199,8 @@
     const now = new Date();
     viewMonth = now.getMonth();
     viewYear  = now.getFullYear();
+    // In calendar mode, land on today's cell; in list mode no selection.
+    selectedDay = (viewMode === 'calendar') ? ymdLocalIST(now) : null;
     renderMonthNav();
     renderFeed();
     renderStackHeader();
@@ -2138,6 +2208,74 @@
   $('monthPrev').addEventListener('click', () => shiftMonth(-1));
   $('monthNext').addEventListener('click', () => shiftMonth(1));
   $('monthToday').addEventListener('click', goToCurrentMonth);
+
+  // ─── View mode (list / calendar) ─────────────────────────────────
+  function setViewMode(mode) {
+    viewMode = mode;
+    $('viewList').classList.toggle('active', mode === 'list');
+    $('viewCal').classList.toggle('active', mode === 'calendar');
+    if (mode === 'calendar') {
+      // Land on today's bills when switching into calendar on the current
+      // month; otherwise leave nothing selected (the grid still shows dots).
+      selectedDay = isViewingCurrentMonth() ? ymdLocalIST(new Date()) : null;
+    } else {
+      selectedDay = null;
+    }
+    renderFeed();
+    renderStackHeader();
+  }
+  $('viewList').addEventListener('click', () => setViewMode('list'));
+  $('viewCal').addEventListener('click', () => setViewMode('calendar'));
+
+  // ─── Calendar grid ───────────────────────────────────────────────
+  const calGridEl = $('calendarGrid');
+  const calDaysEl = $('calDays');
+  function renderCalendar() {
+    calDaysEl.innerHTML = '';
+    const year = viewYear, month = viewMonth;
+    const firstDow = new Date(year, month, 1).getDay();         // 0 = Sunday
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = ymdLocalIST(new Date());
+    const todayStart = startOfDay(new Date());
+    const withOverdue = statusFilter === 'active' || statusFilter === 'paused';
+
+    // Bills due each day this month, matching the active status + chip filter.
+    const candidate = applyFilter(bills).filter(b => (b.status || 'active') === statusFilter);
+    const byDay = {};
+    candidate.forEach(b => {
+      const d = dateFromBill(b.nextDue);
+      if (!d || d.getMonth() !== month || d.getFullYear() !== year) return;
+      const k = ymdLocalIST(d);
+      (byDay[k] ||= []).push(b);
+    });
+
+    for (let i = 0; i < firstDow; i++) {
+      const e = document.createElement('div');
+      e.className = 'cal-cell empty';
+      calDaysEl.appendChild(e);
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayBills = byDay[dateStr] || [];
+      const cellDate = new Date(year, month, day);
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+      if (dateStr === todayStr)    cell.classList.add('today');
+      if (dateStr === selectedDay) cell.classList.add('selected');
+      if (withOverdue && dayBills.length && startOfDay(cellDate) < todayStart) cell.classList.add('overdue');
+      const dots = dayBills.slice(0, 4).map(b => {
+        const c = b.cat || b.category || 'other';
+        return `<span class="cal-dot" style="background: var(--cat-${c});"></span>`;
+      }).join('');
+      cell.innerHTML = `<span class="cal-cell-num">${day}</span><span class="cal-cell-dots">${dots}</span>`;
+      cell.addEventListener('click', () => {
+        selectedDay = (selectedDay === dateStr) ? null : dateStr;
+        renderCalendar();
+        renderFeed();
+      });
+      calDaysEl.appendChild(cell);
+    }
+  }
 
   // Chip filter (owner OR category) + search. Status is intentionally
   // NOT applied here — renderFeed adds it on top, so the month-summary
@@ -2286,13 +2424,21 @@
       const tb = (dateFromBill(b.nextDue) || new Date(0)).getTime();
       return ta - tb;
     };
+    const searching = !!searchQuery.trim();
+    const calMode = (viewMode === 'calendar') && !searching;
 
-    // Search mode: a search is a global "find" — ignore the status tab AND
-    // the viewed month, surface every matching bill. Paused cards are
-    // dimmed and cancelled cards are struck through (billCardEl handles
-    // that visual), so a paused/cancelled hit is still clearly marked.
-    // (The chip filter still applies — it's a deliberate scope you set.)
-    if (searchQuery.trim()) {
+    // Toggle the month-scoped extras. In calendar mode we hide the
+    // summary card, the divider and the recently-paid list — the grid +
+    // selected-day list is the focus. Search mode is always a flat list,
+    // no grid. (style.display override sits on top of the hidden-class
+    // logic those sections manage internally; cleared again on exit.)
+    $('calendarGrid').classList.toggle('hidden', !calMode);
+    $('monthSummary').style.display  = calMode ? 'none' : '';
+    $('feedDivider').style.display   = calMode ? 'none' : '';
+    $('recentSection').style.display = calMode ? 'none' : '';
+
+    // ── Search mode: global "find" — ignore status tab AND viewed month ──
+    if (searching) {
       const matches = applyFilter(bills).sort(byDue);
       if (matches.length === 0) {
         const empty = document.createElement('div');
@@ -2313,14 +2459,45 @@
       return;
     }
 
+    // ── Calendar mode: month grid + the selected day's bills ──
+    if (calMode) {
+      renderCalendar();
+      const candidate = applyFilter(bills).filter(b => (b.status || 'active') === statusFilter);
+      if (selectedDay) {
+        const [y, mo, d] = selectedDay.split('-').map(Number);
+        const dayDate = new Date(y, mo - 1, d);
+        const dayBills = candidate
+          .filter(b => { const bd = dateFromBill(b.nextDue); return bd && ymdLocalIST(bd) === selectedDay; })
+          .sort(byDue);
+        const head = document.createElement('div');
+        head.className = 'cal-day-head';
+        head.innerHTML = `<span class="cal-day-title">${escapeHtml(fmtDate(dayDate))}</span><button class="cal-day-clear" type="button">Clear</button>`;
+        head.querySelector('.cal-day-clear').addEventListener('click', () => { selectedDay = null; renderCalendar(); renderFeed(); });
+        feed.appendChild(head);
+        if (dayBills.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.style.padding = '20px 24px';
+          empty.textContent = 'No bills due on this day.';
+          feed.appendChild(empty);
+        } else {
+          dayBills.forEach(b => feed.appendChild(billCardEl(b)));
+        }
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'Tap a day to see its bills.';
+        feed.appendChild(empty);
+      }
+      renderMonthNav();
+      if (activeDetailBillId && !dt.modal.hidden) paintDetail();
+      return;
+    }
+
+    // ── List mode: month-scoped feed with pinned overdue + no-date ──
     const todayStart = startOfDay(new Date());
     const viewingCurrent = isViewingCurrentMonth();
-    // 'active' and 'paused' tabs get the pinned-overdue treatment; cancelled
-    // bills aren't "overdue" in any meaningful sense.
     const withOverdue = statusFilter === 'active' || statusFilter === 'paused';
-
-    // applyFilter handles owner/category/search; status is applied here
-    // (renderFeed-only) so summary + recent stay status-agnostic.
     const candidate = applyFilter(bills).filter(b => (b.status || 'active') === statusFilter);
 
     const overdue = [], inMonth = [], noDate = [];
@@ -2334,9 +2511,6 @@
     overdue.sort(byDue);
     inMonth.sort(byDue);
     noDate.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    // No-date bills are "unscheduled now" — surface them only when viewing
-    // the current month so past/future browses stay clean. They're still
-    // reachable: jump to Today (the nav resets there on sign-out anyway).
     const showNoDate = viewingCurrent ? noDate : [];
 
     const totalShown = overdue.length + inMonth.length + showNoDate.length;
@@ -2348,8 +2522,6 @@
           <div>No bills yet.</div>
           <div style="margin-top: 8px;">Tap <strong>+</strong> to add your first one.</div>
         `;
-      } else if (searchQuery.trim()) {
-        empty.textContent = `No bills match "${searchQuery.trim()}".`;
       } else {
         empty.textContent = `No ${statusFilter} bills due in ${MONTH_NAMES[viewMonth]} ${viewYear}.`;
       }
@@ -2364,8 +2536,6 @@
         items.forEach(b => feed.appendChild(billCardEl(b)));
       };
       addSection('Overdue', overdue, 'is-overdue');
-      // Only label the month section when there's another section to set it
-      // apart from; otherwise the month-nav strip already names it.
       if (inMonth.length) {
         if (overdue.length || showNoDate.length) {
           addSection(`${MONTH_NAMES[viewMonth]} ${viewYear}`, inMonth, '');
@@ -3295,6 +3465,14 @@
       recentExpanded = false;
       viewMonth = new Date().getMonth();
       viewYear  = new Date().getFullYear();
+      viewMode = 'list';
+      selectedDay = null;
+      $('viewList').classList.add('active');
+      $('viewCal').classList.remove('active');
+      $('calendarGrid').classList.add('hidden');
+      $('monthSummary').style.display = '';
+      $('feedDivider').style.display = '';
+      $('recentSection').style.display = '';
       // Hygienic state reset so a re-login lands clean (these don't break
       // anything if left over today, but stale ids would surface fast as
       // bugs the moment new flows reference them).
