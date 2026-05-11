@@ -394,6 +394,44 @@
     background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   }
 
+  /* Month navigation strip */
+  .month-nav {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; padding: 2px 16px 8px;
+    position: relative;
+  }
+  .month-nav-btn {
+    width: 30px; height: 30px; border-radius: 999px;
+    border: 1px solid var(--border-soft); background: var(--bg-elev-1);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text); cursor: pointer; font-size: 13px;
+    transition: background .12s, opacity .12s;
+  }
+  .month-nav-btn:hover { background: var(--bg-elev-2); }
+  .month-nav-btn:active { opacity: 0.7; }
+  .month-nav-label {
+    font-family: var(--font-display); font-size: 16px; font-weight: 600;
+    color: var(--text); min-width: 120px; text-align: center;
+  }
+  .month-nav-today {
+    position: absolute; right: 16px;
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    cursor: pointer; background: transparent; border: 0; padding: 4px 6px;
+    border-radius: 6px;
+  }
+  .month-nav-today:hover { background: var(--bg-elev-2); }
+
+  /* Feed section headers (Overdue / month / No due date) */
+  .feed-section-head {
+    padding: 14px 16px 6px;
+    font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 700;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .feed-section-head:first-child { padding-top: 4px; }
+  .feed-section-head.is-overdue { color: var(--danger); }
+  .feed-section-head .count { color: var(--text-muted); font-weight: 500; }
+
   /* Filter row 2: status segment, centered */
   .filter-row {
     display: flex; align-items: center;
@@ -1207,9 +1245,16 @@
       <div id="statusSegment" class="seg-pill" role="tablist" aria-label="Filter by status"></div>
     </div>
 
-    <section id="monthSummary" class="month-summary hidden" aria-label="This month's payments">
+    <div class="month-nav">
+      <button id="monthPrev" class="month-nav-btn" aria-label="Previous month" type="button">‹</button>
+      <div id="monthNavLabel" class="month-nav-label">—</div>
+      <button id="monthNext" class="month-nav-btn" aria-label="Next month" type="button">›</button>
+      <button id="monthToday" class="month-nav-today hidden" type="button">Today</button>
+    </div>
+
+    <section id="monthSummary" class="month-summary hidden" aria-label="Payments this month">
       <div class="month-summary-head">
-        <span class="month-summary-label">Paid this month</span>
+        <span class="month-summary-label">Paid</span>
         <span id="monthSummaryMonth" class="month-summary-month"></span>
       </div>
       <div class="month-summary-amount-row">
@@ -1225,7 +1270,7 @@
 
     <section id="recentSection" class="recent-section hidden">
       <div class="recent-header">
-        <span class="recent-title">Recently paid</span>
+        <span id="recentTitle" class="recent-title">Recently paid</span>
         <button id="recentToggle" class="recent-toggle hidden" type="button">Show all</button>
       </div>
       <div id="recentList" class="recent-list"></div>
@@ -1637,6 +1682,11 @@
   // in the centered segment below. Search composes with both.
   let activeFilter = 'all';   // 'all' | 'mine' | 'member_other' | 'shared' | <category id>
   let statusFilter = 'active'; // 'active' | 'paused' | 'cancelled'
+  // The Bills home is a "month view" — the feed, the paid-summary card and
+  // the recently-paid list all reflect viewMonth/viewYear. Default to the
+  // current calendar month. Overdue bills are pinned regardless.
+  let viewMonth = new Date().getMonth();
+  let viewYear  = new Date().getFullYear();
   let searchQuery = '';
   let searchOpen = false;
   let editingBillId = null;
@@ -1999,6 +2049,7 @@
       ? Object.keys(byCur).sort().map(c => fmtMoney(byCur[c], c)).join(' · ')
       : fmtMoney(0, 'INR');
     $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${totalStr} this cycle`;
+    renderMonthNav();
   }
 
   function renderChips() {
@@ -2057,6 +2108,36 @@
     renderFeed();
     renderStackHeader();
   }
+
+  // ─── Month navigation ────────────────────────────────────────────
+  function isViewingCurrentMonth() {
+    const now = new Date();
+    return viewMonth === now.getMonth() && viewYear === now.getFullYear();
+  }
+  function renderMonthNav() {
+    $('monthNavLabel').textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+    $('monthToday').classList.toggle('hidden', isViewingCurrentMonth());
+  }
+  function shiftMonth(delta) {
+    let m = viewMonth + delta, y = viewYear;
+    while (m < 0)  { m += 12; y--; }
+    while (m > 11) { m -= 12; y++; }
+    viewMonth = m; viewYear = y;
+    renderMonthNav();
+    renderFeed();
+    renderStackHeader();
+  }
+  function goToCurrentMonth() {
+    const now = new Date();
+    viewMonth = now.getMonth();
+    viewYear  = now.getFullYear();
+    renderMonthNav();
+    renderFeed();
+    renderStackHeader();
+  }
+  $('monthPrev').addEventListener('click', () => shiftMonth(-1));
+  $('monthNext').addEventListener('click', () => shiftMonth(1));
+  $('monthToday').addEventListener('click', goToCurrentMonth);
 
   // Chip filter (owner OR category) + search. Status is intentionally
   // NOT applied here — renderFeed adds it on top, so the month-summary
@@ -2199,19 +2280,41 @@
   function renderFeed() {
     const feed = $('feed');
     feed.innerHTML = '';
+
+    const todayStart = startOfDay(new Date());
+    const viewingCurrent = isViewingCurrentMonth();
+    // 'active' and 'paused' tabs get the pinned-overdue treatment; cancelled
+    // bills aren't "overdue" in any meaningful sense.
+    const withOverdue = statusFilter === 'active' || statusFilter === 'paused';
+
     // applyFilter handles owner/category/search; status is applied here
     // (renderFeed-only) so summary + recent stay status-agnostic.
-    const visible = applyFilter(bills)
-      .filter(b => (b.status || 'active') === statusFilter)
-      .sort((a, b) => {
-        const da = dateFromBill(a.nextDue);
-        const dbd = dateFromBill(b.nextDue);
-        const ta = da ? da.getTime() : Number.POSITIVE_INFINITY;
-        const tb = dbd ? dbd.getTime() : Number.POSITIVE_INFINITY;
-        return ta - tb;
-      });
+    const candidate = applyFilter(bills).filter(b => (b.status || 'active') === statusFilter);
 
-    if (visible.length === 0) {
+    const byDue = (a, b) => {
+      const ta = (dateFromBill(a.nextDue) || new Date(0)).getTime();
+      const tb = (dateFromBill(b.nextDue) || new Date(0)).getTime();
+      return ta - tb;
+    };
+
+    const overdue = [], inMonth = [], noDate = [];
+    candidate.forEach(b => {
+      const d = dateFromBill(b.nextDue);
+      if (!d) { noDate.push(b); return; }
+      if (withOverdue && startOfDay(d) < todayStart) { overdue.push(b); return; }
+      if (d.getMonth() === viewMonth && d.getFullYear() === viewYear) inMonth.push(b);
+      // else: due in another month — not shown in this view
+    });
+    overdue.sort(byDue);
+    inMonth.sort(byDue);
+    noDate.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    // No-date bills are "unscheduled now" — surface them only when viewing
+    // the current month so past/future browses stay clean. They're still
+    // reachable: jump to Today (the nav resets there on sign-out anyway).
+    const showNoDate = viewingCurrent ? noDate : [];
+
+    const totalShown = overdue.length + inMonth.length + showNoDate.length;
+    if (totalShown === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty';
       if (bills.length === 0) {
@@ -2222,13 +2325,32 @@
       } else if (searchQuery.trim()) {
         empty.textContent = `No bills match "${searchQuery.trim()}".`;
       } else {
-        empty.textContent = `No ${statusFilter} bills match these filters.`;
+        empty.textContent = `No ${statusFilter} bills due in ${MONTH_NAMES[viewMonth]} ${viewYear}.`;
       }
       feed.appendChild(empty);
     } else {
-      visible.forEach(b => feed.appendChild(billCardEl(b)));
+      const addSection = (label, items, cls) => {
+        if (!items.length) return;
+        const head = document.createElement('div');
+        head.className = 'feed-section-head' + (cls ? ' ' + cls : '');
+        head.innerHTML = `<span>${escapeHtml(label)}</span><span class="count">${items.length}</span>`;
+        feed.appendChild(head);
+        items.forEach(b => feed.appendChild(billCardEl(b)));
+      };
+      addSection('Overdue', overdue, 'is-overdue');
+      // Only label the month section when there's another section to set it
+      // apart from; otherwise the month-nav strip already names it.
+      if (inMonth.length) {
+        if (overdue.length || showNoDate.length) {
+          addSection(`${MONTH_NAMES[viewMonth]} ${viewYear}`, inMonth, '');
+        } else {
+          inMonth.forEach(b => feed.appendChild(billCardEl(b)));
+        }
+      }
+      addSection('No due date', showNoDate, '');
     }
 
+    renderMonthNav();
     renderMonthSummary();
     renderRecent();
 
@@ -2253,9 +2375,7 @@
   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   function renderMonthSummary() {
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
+    const m = viewMonth, y = viewYear;
 
     const paidThisMonth = applyFilter(
       bills.filter(b => {
@@ -2339,6 +2459,7 @@
   const recentSectionEl = $('recentSection');
   const recentListEl    = $('recentList');
   const recentToggleEl  = $('recentToggle');
+  const recentTitleEl   = $('recentTitle');
 
   recentToggleEl.addEventListener('click', () => {
     recentExpanded = !recentExpanded;
@@ -2346,12 +2467,20 @@
   });
 
   function renderRecent() {
-    const paid = applyFilter(bills.filter(b => b.lastPaidAt))
+    // Scoped to the viewed month, like the feed and summary above it.
+    const paid = applyFilter(bills.filter(b => {
+        const d = dateFromBill(b.lastPaidAt);
+        return d && d.getMonth() === viewMonth && d.getFullYear() === viewYear;
+      }))
       .sort((a, b) => {
         const ta = (dateFromBill(a.lastPaidAt) || new Date(0)).getTime();
         const tb = (dateFromBill(b.lastPaidAt) || new Date(0)).getTime();
         return tb - ta;
       });
+
+    recentTitleEl.textContent = isViewingCurrentMonth()
+      ? 'Recently paid'
+      : `Paid in ${MONTH_NAMES[viewMonth]} ${viewYear}`;
 
     if (paid.length === 0) {
       recentSectionEl.classList.add('hidden');
@@ -3138,6 +3267,8 @@
       activeFilter = 'all';
       statusFilter = 'active';
       recentExpanded = false;
+      viewMonth = new Date().getMonth();
+      viewYear  = new Date().getFullYear();
       // Hygienic state reset so a re-login lands clean (these don't break
       // anything if left over today, but stale ids would surface fast as
       // bugs the moment new flows reference them).
