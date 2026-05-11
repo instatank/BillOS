@@ -2281,6 +2281,38 @@
     const feed = $('feed');
     feed.innerHTML = '';
 
+    const byDue = (a, b) => {
+      const ta = (dateFromBill(a.nextDue) || new Date(0)).getTime();
+      const tb = (dateFromBill(b.nextDue) || new Date(0)).getTime();
+      return ta - tb;
+    };
+
+    // Search mode: a search is a global "find" — ignore the status tab AND
+    // the viewed month, surface every matching bill. Paused cards are
+    // dimmed and cancelled cards are struck through (billCardEl handles
+    // that visual), so a paused/cancelled hit is still clearly marked.
+    // (The chip filter still applies — it's a deliberate scope you set.)
+    if (searchQuery.trim()) {
+      const matches = applyFilter(bills).sort(byDue);
+      if (matches.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = `No bills match "${searchQuery.trim()}".`;
+        feed.appendChild(empty);
+      } else {
+        const head = document.createElement('div');
+        head.className = 'feed-section-head';
+        head.innerHTML = `<span>Search results</span><span class="count">${matches.length}</span>`;
+        feed.appendChild(head);
+        matches.forEach(b => feed.appendChild(billCardEl(b)));
+      }
+      renderMonthNav();
+      renderMonthSummary();
+      renderRecent();
+      if (activeDetailBillId && !dt.modal.hidden) paintDetail();
+      return;
+    }
+
     const todayStart = startOfDay(new Date());
     const viewingCurrent = isViewingCurrentMonth();
     // 'active' and 'paused' tabs get the pinned-overdue treatment; cancelled
@@ -2290,12 +2322,6 @@
     // applyFilter handles owner/category/search; status is applied here
     // (renderFeed-only) so summary + recent stay status-agnostic.
     const candidate = applyFilter(bills).filter(b => (b.status || 'active') === statusFilter);
-
-    const byDue = (a, b) => {
-      const ta = (dateFromBill(a.nextDue) || new Date(0)).getTime();
-      const tb = (dateFromBill(b.nextDue) || new Date(0)).getTime();
-      return ta - tb;
-    };
 
     const overdue = [], inMonth = [], noDate = [];
     candidate.forEach(b => {
