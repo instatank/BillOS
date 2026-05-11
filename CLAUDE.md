@@ -5,6 +5,7 @@ Project context for Claude Code sessions. Source of truth for *how* we build, no
 The product was previously named BillOS. References to that name in the historical product docs (`BillOS_PRD.md`, `BillOS_MVP_Shell_Prompt.md`) and reference design files (`billos-*.jsx`) have not been renamed — they're frozen artefacts.
 
 ## Read-first
+- `SESSION_HANDOFF.md` — current state of the build + what's next. Read this FIRST.
 - `PRODUCT_BUILD_SOP.md` — build philosophy, mistakes-to-avoid, decision principles
 - `BillOS_PRD.md` — V1 product vision and scope
 - `BillOS_MVP_Shell_Prompt.md` — Phase 3 build plan (the 7 sub-tasks)
