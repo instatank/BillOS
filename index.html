@@ -1216,7 +1216,7 @@
         </button>
       </div>
     </div>
-    <div id="stackSubstat" class="stack-substat">— bills · ₹0 this cycle</div>
+    <div id="stackSubstat" class="stack-substat">— bills · ₹0</div>
 
     <div id="menuPop" class="menu-pop">
       <div id="menuHouseholdName" class="menu-section">—</div>
@@ -2045,10 +2045,20 @@
   }
 
   function renderStackHeader() {
-    // Substat under "Bills": count + per-currency recurring totals of the
-    // active bills matching the chip filter (status-tab independent).
-    const visible = bills.filter(b => (b.status || 'active') === 'active');
-    const filtered = applyFilter(visible);
+    // Substat under "Bills": count + per-currency totals of the active bills
+    // that land in the *viewed month* — mirrors what the feed shows for the
+    // Active tab (bills due that month, plus overdue + no-date bills when
+    // you're on the current month). Chip-filter-aware, status-tab-independent.
+    const todayStart = startOfDay(new Date());
+    const viewingCurrent = isViewingCurrentMonth();
+    const monthBills = bills.filter(b => {
+      if ((b.status || 'active') !== 'active') return false;
+      const d = dateFromBill(b.nextDue);
+      if (!d) return viewingCurrent;                              // no due date — shown only in the current month
+      if (viewingCurrent && startOfDay(d) < todayStart) return true; // overdue — pinned in the current month
+      return d.getMonth() === viewMonth && d.getFullYear() === viewYear;
+    });
+    const filtered = applyFilter(monthBills);
     const byCur = {};
     filtered.forEach(b => {
       const c = billCurrency(b);
@@ -2057,7 +2067,8 @@
     const totalStr = Object.keys(byCur).length
       ? Object.keys(byCur).sort().map(c => fmtMoney(byCur[c], c)).join(' · ')
       : fmtMoney(0, 'INR');
-    $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${totalStr} this cycle`;
+    const monthLbl = MONTH_NAMES[viewMonth] + (viewYear !== new Date().getFullYear() ? ` ${viewYear}` : '');
+    $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${totalStr} in ${monthLbl}`;
     renderMonthNav();
   }
 
@@ -2153,14 +2164,14 @@
     while (m < 0)  { m += 12; y--; }
     while (m > 11) { m -= 12; y++; }
     viewMonth = m; viewYear = y;
-    renderMonthNav();
+    renderStackHeader();
     renderFeed();
   }
   function goToCurrentMonth() {
     const now = new Date();
     viewMonth = now.getMonth();
     viewYear  = now.getFullYear();
-    renderMonthNav();
+    renderStackHeader();
     renderFeed();
   }
   $('monthPrev').addEventListener('click', () => shiftMonth(-1));

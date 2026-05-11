@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (last updated mid-build, SW v0.4.9)
+## Where things stand (last updated mid-build, SW v0.4.10)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,7 +17,7 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.9`. Use `v0.4.10`, etc.
+  clients evict the old shell. Currently `v0.4.10`. Use `v0.4.11`, etc.
 
 ## What's built
 
@@ -35,7 +35,7 @@ of iteration. Highlights:
   `moneyHtml()` everywhere; never sum across currencies.
 - **Bills home ("Bills")**: month-scoped feed. Header row is a 3-track grid
   — `Bills` (left) · `‹ Mon ›` stepper (screen-centered) · `[≡] [big +]`
-  (right) — with the recurring-totals substat on its own full-width line
+  (right) — with a month-scoped substat (count + per-currency totals of the active bills landing in the viewed month) on its own full-width line
   just below it (so it never clips, whatever the currency mix). No bottom
   border on the header. Month label = 3-letter abbrev (year appended only
   when not the current year), tappable to jump to today, accent when
