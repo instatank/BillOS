@@ -335,28 +335,20 @@
 
   /* ─── Stack home: header ──────────────────────────────────────── */
   .stack-header {
-    padding: 16px 16px 12px;
+    padding: 14px 16px 12px;
     display: flex; align-items: center; gap: 8px;
     border-bottom: 1px solid var(--border-soft);
   }
-  .stack-title-block { flex: 0 0 auto; min-width: 0; }
+  .stack-title-block { flex: 0 1 auto; min-width: 0; max-width: 40%; }
   .stack-title {
-    font-family: var(--font-display); font-size: 26px; font-weight: 700;
-    color: var(--text); letter-spacing: -0.5px; line-height: 1;
+    font-family: var(--font-display); font-size: 24px; font-weight: 700;
+    color: var(--text); letter-spacing: -0.4px; line-height: 1.05;
   }
-  /* Single icon button — toggles list ⇄ calendar (shows the icon of the
-     mode you'd switch TO). Lives in the top header row. */
-  .view-toggle-btn {
-    flex: 0 0 auto;
-    width: 32px; height: 32px; padding: 0; border-radius: 999px;
-    border: 1px solid var(--border-soft); background: var(--bg-elev-1);
-    color: var(--text-dim); cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    transition: background .12s, color .12s, opacity .12s;
+  .stack-substat {
+    font-size: 12px; color: var(--text-dim); margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .view-toggle-btn:hover { background: var(--bg-elev-2); color: var(--text); }
-  .view-toggle-btn:active { opacity: 0.7; }
-  /* Month stepper, centered in the top header row */
+  /* Month stepper, centered in the header */
   .stack-month-nav {
     flex: 1; min-width: 0;
     display: flex; align-items: center; justify-content: center; gap: 4px;
@@ -380,7 +372,29 @@
   }
   .stack-month-nav .month-nav-label:hover { background: var(--bg-elev-2); }
   .stack-month-nav .month-nav-label.off-month { color: var(--accent); }
-  .stack-header-actions { flex: 0 0 auto; display: flex; gap: 6px; }
+  .stack-header-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+  /* The + add button is enlarged so it spans the two-line title block —
+     reads as the hero action. */
+  .btn-add-big {
+    width: 48px; height: 48px; min-height: 48px; padding: 0;
+    border-radius: 999px; border: 1px solid var(--accent);
+    background: var(--accent); color: var(--accent-ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: filter .12s, opacity .12s;
+  }
+  .btn-add-big:hover { filter: brightness(1.05); }
+  .btn-add-big:active { opacity: 0.8; }
+  /* View toggle now lives in the search row, next to the search icon */
+  .view-toggle-btn {
+    flex-shrink: 0;
+    width: 40px; height: 40px; padding: 0; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg-elev-1);
+    color: var(--text-dim); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .12s, color .12s, opacity .12s;
+  }
+  .view-toggle-btn:hover { background: var(--bg-elev-2); color: var(--text); }
+  .view-toggle-btn:active { opacity: 0.7; }
 
   /* ─── Search row + filter chip strip ──────────────────────────── */
   .search-row {
@@ -1246,8 +1260,8 @@
     <div class="stack-header">
       <div class="stack-title-block">
         <div class="stack-title">Bills</div>
+        <div id="stackSubstat" class="stack-substat">— bills · ₹0 this cycle</div>
       </div>
-      <button id="viewToggle" class="view-toggle-btn" type="button" aria-label="Switch view"></button>
       <div class="stack-month-nav">
         <button id="monthPrev" class="month-nav-btn" aria-label="Previous month" type="button">‹</button>
         <div id="monthNavLabel" class="month-nav-label" role="button" tabindex="0" title="Jump to current month">—</div>
@@ -1255,8 +1269,8 @@
       </div>
       <div class="stack-header-actions">
         <button id="btnMenu" class="btn-icon-circle" aria-label="Menu">≡</button>
-        <button id="btnAddBill" class="btn-icon-circle is-accent" aria-label="Add bill">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <button id="btnAddBill" class="btn-add-big" aria-label="Add bill">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
         </button>
       </div>
     </div>
@@ -1272,7 +1286,7 @@
     </div>
 
     <div class="search-row">
-      <!-- Layer 1: search icon + chip strip -->
+      <!-- Layer 1: search icon + view toggle + chip strip -->
       <div class="search-row-inner">
         <button id="btnSearch" class="search-icon-btn" aria-label="Search bills" type="button">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1280,6 +1294,7 @@
             <path d="M16 16l4 4"/>
           </svg>
         </button>
+        <button id="viewToggle" class="view-toggle-btn" type="button" aria-label="Switch view"></button>
         <div class="chip-strip">
           <div id="chipStripInner" class="chip-strip-inner"></div>
         </div>
@@ -2096,6 +2111,19 @@
   }
 
   function renderStackHeader() {
+    // Substat under "Bills": count + per-currency recurring totals of the
+    // active bills matching the chip filter (status-tab independent).
+    const visible = bills.filter(b => (b.status || 'active') === 'active');
+    const filtered = applyFilter(visible);
+    const byCur = {};
+    filtered.forEach(b => {
+      const c = billCurrency(b);
+      byCur[c] = (byCur[c] || 0) + (Number(b.amount) || 0);
+    });
+    const totalStr = Object.keys(byCur).length
+      ? Object.keys(byCur).sort().map(c => fmtMoney(byCur[c], c)).join(' · ')
+      : fmtMoney(0, 'INR');
+    $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${totalStr} this cycle`;
     renderMonthNav();
   }
 
