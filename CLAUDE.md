@@ -47,10 +47,9 @@ The product was previously named BillOS. References to that name in the historic
 - `wrap and teach` — deep: write learnings to `LEARNINGS.md` (created when first invoked)
 - Always commit and push at session end
 
-## Calendar (added)
-- Phase 1: month-scoped feed + month nav strip (‹ Month Year › + Today), pinned Overdue section, "No due date" section in current month.
-- Phase 2: list/calendar view toggle (top-left of the month nav). Calendar grid (7-col month grid, category-colour dots per day, today highlighted, overdue days red-tinted); tap a day → feed shows that day's bills. Calendar mode hides the summary card + recently-paid for focus.
-- Phase 3 (not done): jump-to-today already exists; "₹X due / ₹Y paid" per-month strip and other polish still pending.
+## Calendar
+- Month-scoped feed + month stepper in the header (‹ Mon › + tap-to-jump-to-today), pinned Overdue section, "No due date" section in the current month, month-end spillover ("Coming up · early <NextMonth>").
+- A list/calendar view toggle + calendar-grid view existed briefly but was removed (11 May 2026) — the grid layout didn't earn its keep. List is the only home view now. Could revisit later; see git history for the implementation.
 
 ## Sub-task progress
 - [x] 1. Scaffold — `index.html`, `manifest.json`, `sw.js`, dark theme, Firebase init via CDN

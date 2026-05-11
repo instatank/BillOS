@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (last updated mid-build, SW v0.4.7)
+## Where things stand (last updated mid-build, SW v0.4.8)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,7 +17,7 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.7`. Use `v0.4.8`, etc.
+  clients evict the old shell. Currently `v0.4.8`. Use `v0.4.9`, etc.
 
 ## What's built
 
@@ -37,19 +37,17 @@ of iteration. Highlights:
   `[Bills + substat] · ‹ Mon › · [≡] [big +]`. Month label = 3-letter
   abbrev (year appended only when not the current year), tappable to jump
   to today, accent when off-month. Below the header: search row
-  (`[🔍] [view-toggle ▦] [chip strip: All/Mine/<other>/Shared + 5 cats]`),
+  (`[🔍] [chip strip: All/Mine/<other>/Shared + 5 cats]`),
   then the centered status segment (Active/Paused/Cancelled), then the
   month-summary card, a divider, the feed, and "Recently paid".
+  (A list/calendar view toggle + calendar-grid view existed briefly —
+  removed 11 May 2026; list is the only home view. See git history if it
+  needs reviving.)
 - **Feed (list mode)**: sections — `Overdue` (pinned, red, always, for
   active/paused tabs), `<Month>` (the viewed month's bills), `No due date`
   (only when viewing the current month), and `Coming up · early <NextMonth>`
   (only in the last 3 days of the current month — spillover of next month's
   first 7 days).
-- **Calendar mode** (the ▦ toggle): 7-col month grid, category-colour dots
-  per day, today highlighted, overdue days red-tinted, plus dimmed
-  spillover cells for next month's first 7 days near month-end. Tap a day →
-  the area below shows that day's bills. Calendar mode hides the
-  month-summary + recently-paid for focus.
 - **Search**: tap 🔍 → expand-to-input overlay (input always mounted,
   synchronous focus for mobile keyboard, capture-phase outside-click +
   setTimeout(0) + exempt-list — the dayOS/partyspark pattern). Search is a
