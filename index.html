@@ -344,10 +344,22 @@
     font-family: var(--font-display); font-size: 26px; font-weight: 700;
     color: var(--text); letter-spacing: -0.5px; line-height: 1;
   }
-  /* Month stepper now lives centered in the top header row */
+  /* Single icon button — toggles list ⇄ calendar (shows the icon of the
+     mode you'd switch TO). Lives in the top header row. */
+  .view-toggle-btn {
+    flex: 0 0 auto;
+    width: 32px; height: 32px; padding: 0; border-radius: 999px;
+    border: 1px solid var(--border-soft); background: var(--bg-elev-1);
+    color: var(--text-dim); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .12s, color .12s, opacity .12s;
+  }
+  .view-toggle-btn:hover { background: var(--bg-elev-2); color: var(--text); }
+  .view-toggle-btn:active { opacity: 0.7; }
+  /* Month stepper, centered in the top header row */
   .stack-month-nav {
     flex: 1; min-width: 0;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
   }
   .stack-month-nav .month-nav-btn {
     width: 28px; height: 28px; border-radius: 999px;
@@ -358,10 +370,16 @@
   }
   .stack-month-nav .month-nav-btn:hover { background: var(--bg-elev-2); }
   .stack-month-nav .month-nav-btn:active { opacity: 0.7; }
+  /* The label doubles as the "jump to current month" tap target; it goes
+     accent when you've navigated off the current month. */
   .stack-month-nav .month-nav-label {
     font-family: var(--font-display); font-size: 17px; font-weight: 600;
     color: var(--text); text-align: center; white-space: nowrap;
+    cursor: pointer; padding: 2px 6px; border-radius: 6px;
+    transition: background .12s, color .12s;
   }
+  .stack-month-nav .month-nav-label:hover { background: var(--bg-elev-2); }
+  .stack-month-nav .month-nav-label.off-month { color: var(--accent); }
   .stack-header-actions { flex: 0 0 auto; display: flex; gap: 6px; }
 
   /* ─── Search row + filter chip strip ──────────────────────────── */
@@ -411,36 +429,6 @@
     background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   }
 
-  /* Controls strip below the header: view toggle (left), the active-bills
-     substat (dead-centered), and the Today link (right, only when you've
-     navigated off the current month). The month stepper itself lives up
-     in the .stack-header now. */
-  .month-nav {
-    position: relative;
-    display: flex; align-items: center;
-    padding: 4px 16px 8px; min-height: 30px;
-  }
-  .month-nav-substat {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    font-size: 12px; color: var(--text-dim);
-    max-width: calc(100% - 130px);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    text-align: center; pointer-events: none;
-  }
-  .view-toggle {
-    display: inline-flex; gap: 2px; padding: 2px;
-    background: var(--bg-elev-2); border: 1px solid var(--border-soft);
-    border-radius: 999px; flex-shrink: 0;
-  }
-  .view-toggle button {
-    width: 26px; height: 26px; padding: 0; border: 0; background: transparent;
-    border-radius: 999px; color: var(--text-dim); cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    transition: background .12s, color .12s;
-  }
-  .view-toggle button:hover { color: var(--text); }
-  .view-toggle button.active { background: var(--bg-elev-1); color: var(--text); box-shadow: 0 1px 0 var(--border-soft); }
-
   /* Calendar grid */
   .cal-grid { padding: 4px 12px 6px; }
   .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 4px; }
@@ -485,13 +473,6 @@
   .cal-day-head .cal-day-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text); }
   .cal-day-head .cal-day-clear { background: transparent; border: 0; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
   .cal-day-head .cal-day-clear:hover { background: var(--bg-elev-2); }
-  .month-nav-today {
-    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-    font-size: 12px; font-weight: 600; color: var(--accent);
-    cursor: pointer; background: transparent; border: 0; padding: 4px 6px;
-    border-radius: 6px;
-  }
-  .month-nav-today:hover { background: var(--bg-elev-2); }
 
   /* Feed section headers (Overdue / month / No due date) */
   .feed-section-head {
@@ -1266,9 +1247,10 @@
       <div class="stack-title-block">
         <div class="stack-title">Bills</div>
       </div>
+      <button id="viewToggle" class="view-toggle-btn" type="button" aria-label="Switch view"></button>
       <div class="stack-month-nav">
         <button id="monthPrev" class="month-nav-btn" aria-label="Previous month" type="button">‹</button>
-        <div id="monthNavLabel" class="month-nav-label">—</div>
+        <div id="monthNavLabel" class="month-nav-label" role="button" tabindex="0" title="Jump to current month">—</div>
         <button id="monthNext" class="month-nav-btn" aria-label="Next month" type="button">›</button>
       </div>
       <div class="stack-header-actions">
@@ -1319,19 +1301,6 @@
 
     <div class="filter-row filter-row-center">
       <div id="statusSegment" class="seg-pill" role="tablist" aria-label="Filter by status"></div>
-    </div>
-
-    <div class="month-nav">
-      <div class="view-toggle" role="tablist" aria-label="View mode">
-        <button id="viewList" class="active" type="button" role="tab" aria-label="List view" title="List">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-        </button>
-        <button id="viewCal" type="button" role="tab" aria-label="Calendar view" title="Calendar">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
-        </button>
-      </div>
-      <div id="stackSubstat" class="month-nav-substat">— bills · ₹0 this cycle</div>
-      <button id="monthToday" class="month-nav-today hidden" type="button">Today</button>
     </div>
 
     <div id="calendarGrid" class="cal-grid hidden">
@@ -2127,18 +2096,6 @@
   }
 
   function renderStackHeader() {
-    const visible = bills.filter(b => (b.status || 'active') === 'active');
-    const filtered = applyFilter(visible);
-    // Totals are kept per-currency; we can't add ₹ and $ together.
-    const byCur = {};
-    filtered.forEach(b => {
-      const c = billCurrency(b);
-      byCur[c] = (byCur[c] || 0) + (Number(b.amount) || 0);
-    });
-    const totalStr = Object.keys(byCur).length
-      ? Object.keys(byCur).sort().map(c => fmtMoney(byCur[c], c)).join(' · ')
-      : fmtMoney(0, 'INR');
-    $('stackSubstat').textContent = `${filtered.length} ${filtered.length === 1 ? 'bill' : 'bills'} · ${totalStr} this cycle`;
     renderMonthNav();
   }
 
@@ -2224,8 +2181,10 @@
     // Just the 3-letter month (Jan, Aug, …); append the year only when it
     // differs from the current year so cross-year browsing isn't ambiguous.
     const curYear = new Date().getFullYear();
-    $('monthNavLabel').textContent = MONTH_NAMES[viewMonth] + (viewYear !== curYear ? ` ${viewYear}` : '');
-    $('monthToday').classList.toggle('hidden', isViewingCurrentMonth());
+    const lbl = $('monthNavLabel');
+    lbl.textContent = MONTH_NAMES[viewMonth] + (viewYear !== curYear ? ` ${viewYear}` : '');
+    // The label doubles as "jump to current month" — accent it when off.
+    lbl.classList.toggle('off-month', !isViewingCurrentMonth());
   }
   function shiftMonth(delta) {
     let m = viewMonth + delta, y = viewYear;
@@ -2235,7 +2194,6 @@
     selectedDay = null; // selection was for the old month
     renderMonthNav();
     renderFeed();
-    renderStackHeader();
   }
   function goToCurrentMonth() {
     const now = new Date();
@@ -2245,17 +2203,25 @@
     selectedDay = (viewMode === 'calendar') ? ymdLocalIST(now) : null;
     renderMonthNav();
     renderFeed();
-    renderStackHeader();
   }
   $('monthPrev').addEventListener('click', () => shiftMonth(-1));
   $('monthNext').addEventListener('click', () => shiftMonth(1));
-  $('monthToday').addEventListener('click', goToCurrentMonth);
+  $('monthNavLabel').addEventListener('click', goToCurrentMonth);
+  $('monthNavLabel').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToCurrentMonth(); } });
 
-  // ─── View mode (list / calendar) ─────────────────────────────────
+  // ─── View mode (list / calendar) — single toggle button ──────────
+  const ICON_LIST = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>`;
+  const ICON_CAL  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>`;
+  function renderViewToggle() {
+    const btn = $('viewToggle');
+    // Show the icon of the mode you'd switch TO.
+    btn.innerHTML = viewMode === 'list' ? ICON_CAL : ICON_LIST;
+    btn.title = viewMode === 'list' ? 'Switch to calendar view' : 'Switch to list view';
+    btn.setAttribute('aria-label', btn.title);
+  }
   function setViewMode(mode) {
     viewMode = mode;
-    $('viewList').classList.toggle('active', mode === 'list');
-    $('viewCal').classList.toggle('active', mode === 'calendar');
+    renderViewToggle();
     if (mode === 'calendar') {
       // Land on today's bills when switching into calendar on the current
       // month; otherwise leave nothing selected (the grid still shows dots).
@@ -2264,10 +2230,9 @@
       selectedDay = null;
     }
     renderFeed();
-    renderStackHeader();
   }
-  $('viewList').addEventListener('click', () => setViewMode('list'));
-  $('viewCal').addEventListener('click', () => setViewMode('calendar'));
+  renderViewToggle();
+  $('viewToggle').addEventListener('click', () => setViewMode(viewMode === 'list' ? 'calendar' : 'list'));
 
   // ─── Calendar grid ───────────────────────────────────────────────
   const calGridEl = $('calendarGrid');
@@ -3548,8 +3513,8 @@
       viewYear  = new Date().getFullYear();
       viewMode = 'list';
       selectedDay = null;
-      $('viewList').classList.add('active');
-      $('viewCal').classList.remove('active');
+      renderViewToggle();
+      renderMonthNav();
       $('calendarGrid').classList.add('hidden');
       $('monthSummary').style.display = '';
       $('feedDivider').style.display = '';
