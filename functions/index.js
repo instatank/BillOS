@@ -2,7 +2,8 @@
 
 // BillBud — scheduled bill reminders.
 //
-// Runs daily at 08:00 Asia/Kolkata. For every household, finds active bills
+// Runs daily at 20:00 Asia/Kolkata (TEMPORARY — testing window; revert to "0 8 * * *"
+// once verified). For every household, finds active bills
 // that are due within ~48h (or already overdue) and sends ONE digest web-push
 // per opted-in device (devices live at /households/{hid}/reminderDevices/{token}
 // — doc id is the FCM token, written by the client when a member turns on
@@ -50,7 +51,7 @@ const DEAD_TOKEN_CODES = [
 ];
 
 exports.sendBillReminders = onSchedule(
-  { schedule: "0 8 * * *", timeZone: "Asia/Kolkata" },
+  { schedule: "0 20 * * *", timeZone: "Asia/Kolkata" },
   async () => {
     const now = Timestamp.now();
     const cutoff = Timestamp.fromMillis(Date.now() + WINDOW_MS);
