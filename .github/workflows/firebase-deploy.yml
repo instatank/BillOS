@@ -1,0 +1,40 @@
+name: Deploy Firebase (functions + Firestore rules)
+
+# Auto-deploys the Cloud Function(s) and Firestore security rules whenever the
+# relevant files change on the production branch. Auth is a service-account key
+# stored as the FIREBASE_SERVICE_ACCOUNT repo secret (Settings → Secrets and
+# variables → Actions). Can also be run manually from the Actions tab.
+
+on:
+  push:
+    branches: [claude/design-system]
+    paths:
+      - "functions/**"
+      - "firestore.rules"
+      - "firebase.json"
+      - ".github/workflows/firebase-deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm install
+
+      - name: Write service account key
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$SA_JSON" > "$RUNNER_TEMP/firebase-sa.json"
+
+      - name: Deploy functions + Firestore rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+        run: npx --yes firebase-tools@latest deploy --only functions,firestore:rules --project billos-edd54 --non-interactive --force

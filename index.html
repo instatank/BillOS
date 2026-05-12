@@ -874,6 +874,8 @@
   .menu-item.danger { color: var(--danger); }
   .menu-divider { height: 1px; background: var(--border-soft); margin: 4px 6px; }
   .menu-section { padding: 6px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .menu-state { font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+  .menu-state.on { color: var(--accent); }
 
   /* Month summary card (top of bills feed) */
   .month-summary {
@@ -1224,6 +1226,12 @@
       <div id="menuHouseholdName" class="menu-section">—</div>
       <div id="menuMembers" style="padding: 0 12px 6px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
       <div class="menu-divider"></div>
+      <div id="menuReminders" class="menu-item" role="button" style="display: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span style="flex: 1;">Bill reminders</span>
+        <span id="menuRemindersState" class="menu-state">Off</span>
+      </div>
+      <div class="menu-divider"></div>
       <div id="menuSignOut" class="menu-item danger">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Sign out</span>
@@ -1500,6 +1508,9 @@
     query, where, orderBy, onSnapshot, runTransaction, serverTimestamp,
     Timestamp, writeBatch
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    getMessaging, getToken, deleteToken, isSupported as messagingSupported
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey:            "AIzaSyCNc_WFupX5qJEULas4_Ovi7wnzsdVoUXY",
@@ -1780,6 +1791,7 @@
         renderMenu();
         show('stack');
         subscribeToBills(currentHouseholdId);
+        if (!_reminderSynced) { _reminderSynced = true; syncReminderToken(); }
       }
     }, (err) => {
       console.error('[household] snapshot failed', err);
@@ -2224,6 +2236,17 @@
       pill.textContent = memberLabel(uid) + (uid === currentUser?.uid ? ' (you)' : '');
       memEl.appendChild(pill);
     });
+    // Bill reminders row — only shown on devices that can do web push at all
+    // (on iOS that means the home-screen-installed app, iOS 16.4+).
+    remindersSupported().then((ok) => {
+      const row = $('menuReminders'); if (!row) return;
+      row.style.display = ok ? '' : 'none';
+      if (!ok) return;
+      const on = remindersEnabled();
+      const st = $('menuRemindersState');
+      st.textContent = on ? 'On' : 'Off';
+      st.classList.toggle('on', on);
+    });
   }
   $('btnMenu').addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -2234,6 +2257,107 @@
     if (!pop.contains(ev.target) && ev.target !== $('btnMenu')) pop.classList.remove('open');
   });
   $('menuSignOut').addEventListener('click', doSignOut);
+
+  // ───────────────────────────────────────────────────────────────────
+  // Bill reminders (FCM web push) — opt-in per device.
+  //
+  // The toggle lives in the ≡ menu. Turning it on asks for notification
+  // permission, fetches this device's FCM token, and stores it at
+  //   /households/{hid}/reminderDevices/{token}   { uid, ua, updatedAt }
+  // A localStorage flag remembers the opt-in so we refresh the token on every
+  // load (tokens rotate; the household may change). The actual push is sent by
+  // the `sendBillReminders` Cloud Function (functions/index.js) — daily at
+  // 08:00 IST, one digest per device, for active bills due within ~48h or
+  // already overdue. Tapping the notification opens the app (webpush link).
+  // On iOS this only works in the home-screen-installed PWA on iOS 16.4+.
+  // ───────────────────────────────────────────────────────────────────
+  const FCM_VAPID_KEY = "BPAl4F-hmA-H5eKi2j9Uo4oYiI5QfW7bOBv4aKJmXBUMkpIp3B6q-ZH_Dl0LvsssXOWS2m1yjV3ZvgFeK8DpoRg";
+  let reminderToken = (() => { try { return localStorage.getItem('billbud:fcmToken') || null; } catch { return null; } })();
+  let _reminderSynced = false;
+  let _messaging = null;
+  function messagingInstance() {
+    if (!_messaging) { try { _messaging = getMessaging(app); } catch (e) { console.warn('[reminders] messaging unavailable', e); } }
+    return _messaging;
+  }
+  let _remindersSupported = null;
+  async function remindersSupported() {
+    if (_remindersSupported !== null) return _remindersSupported;
+    try { _remindersSupported = ('Notification' in window) && (await messagingSupported()); }
+    catch { _remindersSupported = false; }
+    return _remindersSupported;
+  }
+  function remindersEnabled() {
+    try {
+      return localStorage.getItem('billbud:reminders') === '1'
+        && ('Notification' in window) && Notification.permission === 'granted';
+    } catch { return false; }
+  }
+  async function enableReminders() {
+    if (!currentHouseholdId || !currentUser) { showToast('Join a household first.'); return; }
+    if (!(await remindersSupported())) {
+      showToast('Reminders need the installed app — add BillBud to your home screen, then turn this on.', { duration: 6500 });
+      return;
+    }
+    let perm;
+    try { perm = await Notification.requestPermission(); } catch { perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied'; }
+    if (perm !== 'granted') {
+      showToast("Notifications are off — allow them in your browser/OS settings to get reminders.", { duration: 6500 });
+      return;
+    }
+    const messaging = messagingInstance();
+    if (!messaging) { showToast("Couldn't set up reminders on this device."); return; }
+    let token;
+    try { token = await getToken(messaging, { vapidKey: FCM_VAPID_KEY }); }
+    catch (e) { console.warn('[reminders] getToken failed', e); showToast("Couldn't register this device for reminders."); return; }
+    if (!token) { showToast("Couldn't register this device for reminders."); return; }
+    try {
+      await setDoc(doc(db, 'households', currentHouseholdId, 'reminderDevices', token), {
+        uid: currentUser.uid,
+        ua: (navigator.userAgent || '').slice(0, 150),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) { console.warn('[reminders] token save failed', e); showToast("Couldn't save your reminder settings."); return; }
+    try { localStorage.setItem('billbud:reminders', '1'); localStorage.setItem('billbud:fcmToken', token); } catch {}
+    reminderToken = token;
+    showToast("Bill reminders on — we'll ping this device when something's due soon.", { duration: 5000 });
+  }
+  async function disableReminders() {
+    try { localStorage.removeItem('billbud:reminders'); } catch {}
+    let t = reminderToken; try { t = t || localStorage.getItem('billbud:fcmToken'); } catch {}
+    if (t && currentHouseholdId) deleteDoc(doc(db, 'households', currentHouseholdId, 'reminderDevices', t)).catch(() => {});
+    try { const m = messagingInstance(); if (m) await deleteToken(m); } catch {}
+    try { localStorage.removeItem('billbud:fcmToken'); } catch {}
+    reminderToken = null;
+    showToast('Bill reminders off.');
+  }
+  // Called once a household is known: if opted in, refresh + re-register the token.
+  async function syncReminderToken() {
+    let flag; try { flag = localStorage.getItem('billbud:reminders'); } catch { flag = null; }
+    if (flag !== '1') return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') { try { localStorage.removeItem('billbud:reminders'); } catch {} return; }
+    if (!(await remindersSupported()) || !currentHouseholdId || !currentUser) return;
+    const messaging = messagingInstance();
+    if (!messaging) return;
+    try {
+      const token = await getToken(messaging, { vapidKey: FCM_VAPID_KEY });
+      if (!token) return;
+      reminderToken = token;
+      try { localStorage.setItem('billbud:fcmToken', token); } catch {}
+      await setDoc(doc(db, 'households', currentHouseholdId, 'reminderDevices', token), {
+        uid: currentUser.uid,
+        ua: (navigator.userAgent || '').slice(0, 150),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) { console.warn('[reminders] token sync failed', e); }
+  }
+  $('menuReminders').addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    const row = $('menuReminders');
+    if (row.dataset.busy === '1') return;
+    row.dataset.busy = '1';
+    try { if (remindersEnabled()) await disableReminders(); else await enableReminders(); }
+    finally { row.dataset.busy = '0'; renderMenu(); }
+  });
 
   // ───────────────────────────────────────────────────────────────────
   // Search (icon → expand-to-input overlay)
@@ -3327,6 +3451,14 @@
     if (user) {
       subscribeToHousehold(user.uid);
     } else {
+      // Best-effort: drop this device's reminder token from the (ex-)household
+      // so a future user on this device doesn't get pushes about bills they
+      // can't see. Keep the localStorage opt-in flag — re-login re-registers.
+      try {
+        let t = reminderToken; try { t = t || localStorage.getItem('billbud:fcmToken'); } catch {}
+        if (t && currentHouseholdId) deleteDoc(doc(db, 'households', currentHouseholdId, 'reminderDevices', t)).catch(() => {});
+      } catch {}
+      _reminderSynced = false;
       if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
       if (unsubBills) { unsubBills(); unsubBills = null; subscribedBillsHid = null; }
       if (inviteTicker) { clearInterval(inviteTicker); inviteTicker = null; }

@@ -1,0 +1,6 @@
+# Firebase Cloud Functions + CI config aren't part of the Vercel (static) deploy.
+functions/
+.github/
+firebase.json
+.firebaserc
+firestore.rules

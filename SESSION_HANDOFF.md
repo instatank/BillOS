@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (last updated mid-build, SW v0.4.11)
+## Where things stand (last updated mid-build, SW v0.4.12)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,7 +17,7 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.11`. Use `v0.4.12`, etc.
+  clients evict the old shell. Currently `v0.4.12`. Use `v0.4.13`, etc.
 
 ## What's built
 
@@ -79,6 +79,23 @@ of iteration. Highlights:
   (`updatedAt` + `lastModifiedBy`) on every bill mutation; idempotent bills
   listener (`subscribedBillsHid` guard); no hard-delete except the explicit
   Delete action; comprehensive sign-out reset.
+- **Bill reminders (push)** — opt-in per device via a "Bill reminders"
+  toggle in the ≡ menu (only shown where web push works → on iOS, the
+  installed PWA on 16.4+). On: asks notification permission, fetches an FCM
+  token, stores it at `/households/{hid}/reminderDevices/{token}`
+  (`{ uid, ua, updatedAt }`); a `localStorage['billbud:reminders']` flag
+  re-registers the token on every load. `firebase-messaging-sw.js` (at site
+  root, auto-registered by the FCM SDK at its own sub-scope — doesn't touch
+  `sw.js`) shows background notifications. The send side is a v2 scheduled
+  Cloud Function `sendBillReminders` (`functions/index.js`), `0 8 * * *`
+  `Asia/Kolkata`: per household, finds active bills due within ~48h or
+  overdue → one digest push per device ("2 bills due soon · ₹4,300" /
+  "1 overdue + 1 due soon · …"), prunes dead tokens, sends nothing if
+  nothing's due. Tapping a notification opens the app. Deployed by the
+  `Deploy Firebase` GitHub Action (`.github/workflows/firebase-deploy.yml`)
+  on push to `claude/design-system` — uses the `FIREBASE_SERVICE_ACCOUNT`
+  repo secret; deploys `functions` + `firestore:rules`. **Not yet live /
+  not yet tested** at time of writing — see "Next up" #2.
 
 ## Next up / open ideas (not started)
 
@@ -89,8 +106,17 @@ of iteration. Highlights:
    → re-export all sizes, crop the white border, regen maskable, bump SW).
    Still to do: tighten the SW caching strategy, verify install-to-home-screen
    on iOS. (This was original "sub-task 7".)
-2. **Reminders** — upcoming-due summary + push notifications for bills due
-   in 1–3 days.
+2. **Reminders** — built (see "Bill reminders (push)" above) but **needs
+   first-deploy verification**: (a) the in-app "due soon" surfacing idea
+   was dropped — bill cards already show relative due-pills + red/yellow
+   urgency, so a separate section added nothing; (b) the push side ships
+   when this lands on `claude/design-system` — confirm the `Deploy Firebase`
+   GitHub Action goes green (the default `firebase-adminsdk` SA may need
+   extra IAM roles for function deploys; the Action log will say which —
+   grant via Google Cloud Console → IAM, GUI), then on the iPhone (installed
+   PWA) flip the ≡ menu "Bill reminders" toggle on, allow notifications, and
+   check a push arrives at the next 08:00 IST (or trigger the function once
+   from the Firebase console / `workflow_dispatch` to test sooner).
 3. **Settings menu** — edit household name, leave household, manage your
    display name (no way to do any of these yet; the ≡ menu only has sign
    out + household name + member pills).
