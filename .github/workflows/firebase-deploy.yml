@@ -11,6 +11,7 @@ on:
     paths:
       - "functions/**"
       - "firestore.rules"
+      - "firestore.indexes.json"
       - "firebase.json"
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:
@@ -37,4 +38,4 @@ jobs:
       - name: Deploy functions + Firestore rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
-        run: npx --yes firebase-tools@latest deploy --only functions,firestore:rules --project billos-edd54 --non-interactive --force
+        run: npx --yes firebase-tools@latest deploy --only functions,firestore:rules,firestore:indexes --project billos-edd54 --non-interactive --force
