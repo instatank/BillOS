@@ -882,22 +882,28 @@
   /* Month summary card (top of bills feed) */
   .month-summary {
     margin: 6px 12px 14px;
-    padding: 18px 18px 16px;
+    padding: 13px 16px;
     background: var(--bg-elev-1);
     border: 1px solid var(--summary-ring);
     border-radius: var(--radius-card);
-    display: flex; flex-direction: column; gap: 12px;
+    display: flex; flex-direction: column; gap: 9px;
     position: relative;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, transform .08s;
   }
+  .month-summary:hover { background: var(--bg-elev-2); border-color: var(--accent-border); }
+  .month-summary:active { transform: scale(.994); }
   .month-summary-head {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    display: flex; align-items: center; gap: 10px;
   }
   .month-summary-label {
     font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
     color: var(--summary-mint); font-weight: 700;
+    flex-shrink: 0;
   }
   .month-summary-month {
     font-size: 12px; color: var(--text-muted); font-weight: 500;
+    flex-shrink: 0;
   }
   .month-summary-amount-row {
     display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
@@ -912,9 +918,11 @@
   .month-summary-count {
     font-size: 13px; color: var(--text-dim);
   }
+  /* Condensed category breakdown bar — sits inline in the card's top row */
   .month-summary-bar {
     display: flex; align-items: stretch;
-    height: 8px; border-radius: 4px; overflow: hidden;
+    flex: 1; min-width: 36px;
+    height: 7px; border-radius: 4px; overflow: hidden;
     background: var(--bg-elev-2);
     gap: 2px;
   }
@@ -923,20 +931,24 @@
     transition: width .25s ease;
     min-width: 2px;
   }
-  .month-summary-legend {
-    display: flex; flex-wrap: wrap; gap: 10px 14px;
-    font-size: 11.5px; color: var(--text-dim);
+
+  /* Monthly spend page (opened by tapping the Paid summary card) */
+  .spend-hero { text-align: center; padding: 16px 8px 24px; }
+  .spend-month {
+    font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 700; margin-bottom: 9px;
   }
-  .month-summary-legend-item {
-    display: inline-flex; align-items: center; gap: 5px;
+  .spend-total {
+    font-family: var(--font-num); font-weight: 700; font-size: 40px;
+    letter-spacing: -0.6px; font-variant-numeric: tabular-nums;
+    color: var(--text); line-height: 1;
   }
-  .month-summary-legend-item .swatch {
-    width: 8px; height: 8px; border-radius: 2px;
-    flex-shrink: 0;
-  }
-  .month-summary-legend-item .amt {
-    font-variant-numeric: tabular-nums; color: var(--text);
-    font-weight: 600;
+  .spend-total .sym { opacity: 0.6; margin-right: 2px; }
+  .spend-total-sep { color: var(--text-muted); margin: 0 8px; font-weight: 500; }
+  .spend-count { font-size: 13px; color: var(--text-dim); margin-top: 9px; }
+  .spend-empty {
+    text-align: center; color: var(--text-dim); font-size: 14px;
+    padding: 36px 16px;
   }
 
   /* Slim divider between summary card and bills feed */
@@ -1272,17 +1284,16 @@
       <div id="statusSegment" class="seg-pill" role="tablist" aria-label="Filter by status"></div>
     </div>
 
-    <section id="monthSummary" class="month-summary hidden" aria-label="Payments this month">
+    <section id="monthSummary" class="month-summary hidden" role="button" tabindex="0" aria-label="View monthly spend">
       <div class="month-summary-head">
         <span class="month-summary-label">Paid</span>
+        <div id="monthSummaryBar" class="month-summary-bar" role="img" aria-label="Category breakdown"></div>
         <span id="monthSummaryMonth" class="month-summary-month"></span>
       </div>
       <div class="month-summary-amount-row">
         <span id="monthSummaryAmount" class="month-summary-amount"></span>
         <span id="monthSummaryCount" class="month-summary-count"></span>
       </div>
-      <div id="monthSummaryBar" class="month-summary-bar" role="img" aria-label="Category breakdown"></div>
-      <div id="monthSummaryLegend" class="month-summary-legend"></div>
     </section>
 
     <hr id="feedDivider" class="feed-divider" />
@@ -1380,6 +1391,30 @@
 </div>
 
 <!-- ─── Detail modal ─────────────────────────────────────────── -->
+<!-- ─── Monthly spend page ───────────────────────────────────── -->
+<div id="modalSpendOverlay" class="modal-overlay" hidden></div>
+<div id="modalSpend" class="modal" hidden role="dialog" aria-modal="true" aria-label="Monthly spend">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <button id="spendBack" class="nav-btn nav-btn-pill" aria-label="Back to bills">
+        <svg width="11" height="18" viewBox="0 0 11 18" fill="none"><path d="M9.5 1L1.5 9l8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Bills</span>
+      </button>
+      <div class="modal-title">Monthly spend</div>
+      <div style="width: 72px; flex-shrink: 0;" aria-hidden="true"></div>
+    </div>
+    <div class="modal-body">
+      <div class="spend-hero">
+        <div id="spendMonth" class="spend-month">—</div>
+        <div id="spendTotal" class="spend-total">—</div>
+        <div id="spendCount" class="spend-count">—</div>
+      </div>
+      <div id="spendList" class="recent-list"></div>
+      <div id="spendEmpty" class="spend-empty hidden">No payments recorded this month.</div>
+    </div>
+  </div>
+</div>
+
 <div id="modalDetailOverlay" class="modal-overlay" hidden></div>
 <div id="modalDetail" class="modal" hidden role="dialog" aria-modal="true" aria-label="Bill detail">
   <div class="modal-inner">
@@ -2474,6 +2509,7 @@
       renderMonthNav();
       renderMonthSummary();
       renderRecent();
+      if (!spend.modal.hidden) renderSpend();
       if (activeDetailBillId && !dt.modal.hidden) paintDetail();
       return;
     }
@@ -2547,6 +2583,7 @@
     renderMonthNav();
     renderMonthSummary();
     renderRecent();
+    if (!spend.modal.hidden) renderSpend();
 
     // Re-paint open detail modal if its bill changed
     if (activeDetailBillId && !dt.modal.hidden) paintDetail();
@@ -2564,7 +2601,6 @@
   const summaryCountEl  = $('monthSummaryCount');
   const summaryMonthEl  = $('monthSummaryMonth');
   const summaryBarEl    = $('monthSummaryBar');
-  const summaryLegendEl = $('monthSummaryLegend');
 
   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -2604,12 +2640,12 @@
       .map(c => `<span class="sym">${moneySymbol(c)}</span>${moneyBody(byCur[c].total, c)}`)
       .join('<span style="color: var(--text-muted); margin: 0 8px; font-weight: 500;">·</span>');
     summaryCountEl.textContent = `across ${paidThisMonth.length} ${paidThisMonth.length === 1 ? 'bill' : 'bills'}`;
-    summaryMonthEl.textContent = `${MONTH_NAMES[m]} ${y}`;
+    summaryMonthEl.textContent = MONTH_NAMES[m];
 
-    // Category bar + legend — primary currency only
+    // Condensed category breakdown bar — primary currency only. The exact
+    // per-category amounts now live on the Monthly spend page (tap the card).
     const prim = byCur[primary];
     summaryBarEl.innerHTML = '';
-    summaryLegendEl.innerHTML = '';
     CAT_ORDER.forEach(c => {
       const amt = prim.byCat[c];
       if (!amt) return;
@@ -2619,28 +2655,76 @@
       seg.style.background = `var(--cat-${c})`;
       seg.title = `${CATEGORIES[c].label}: ${fmtMoney(amt, primary)}`;
       summaryBarEl.appendChild(seg);
-
-      const item = document.createElement('span');
-      item.className = 'month-summary-legend-item';
-      item.innerHTML = `
-        <span class="swatch" style="background: var(--cat-${c});"></span>
-        <span>${CATEGORIES[c].label}</span>
-        <span class="amt">${fmtMoney(amt, primary)}</span>
-      `;
-      summaryLegendEl.appendChild(item);
-    });
-    // Other currencies — total only, no category breakdown
-    currencies.slice(1).forEach(c => {
-      const item = document.createElement('span');
-      item.className = 'month-summary-legend-item';
-      item.innerHTML = `
-        <span class="swatch" style="background: var(--text-muted);"></span>
-        <span>Other (${c})</span>
-        <span class="amt">${fmtMoney(byCur[c].total, c)}</span>
-      `;
-      summaryLegendEl.appendChild(item);
     });
   }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Monthly spend page — opened by tapping the Paid summary card. Lists
+  // every payment recorded in the viewed month as a flat, dated list.
+  // Basic version: month total, count, and the list (rows reuse the
+  // recently-paid row + open the bill detail on tap).
+  // ───────────────────────────────────────────────────────────────────
+  const spend = {
+    overlay: $('modalSpendOverlay'),
+    modal:   $('modalSpend'),
+    monthEl: $('spendMonth'),
+    totalEl: $('spendTotal'),
+    countEl: $('spendCount'),
+    listEl:  $('spendList'),
+    emptyEl: $('spendEmpty'),
+  };
+
+  function renderSpend() {
+    const m = viewMonth, y = viewYear;
+    const paid = applyFilter(bills.filter(b => {
+      const d = dateFromBill(b.lastPaidAt);
+      return d && d.getMonth() === m && d.getFullYear() === y;
+    })).sort((a, b) => {
+      const ta = (dateFromBill(a.lastPaidAt) || new Date(0)).getTime();
+      const tb = (dateFromBill(b.lastPaidAt) || new Date(0)).getTime();
+      return tb - ta;
+    });
+
+    spend.monthEl.textContent = `${MONTH_NAMES[m]} ${y}`;
+
+    const byCur = {};
+    paid.forEach(b => {
+      const cur = billCurrency(b);
+      const amt = Number(b.lastPaidAmount != null ? b.lastPaidAmount : b.amount) || 0;
+      byCur[cur] = (byCur[cur] || 0) + amt;
+    });
+    const currencies = Object.keys(byCur).sort((a, b) => byCur[b] - byCur[a]);
+    spend.totalEl.innerHTML = currencies.length
+      ? currencies
+          .map(c => `<span class="sym">${moneySymbol(c)}</span>${moneyBody(byCur[c], c)}`)
+          .join('<span class="spend-total-sep">·</span>')
+      : `<span class="sym">${moneySymbol('INR')}</span>0`;
+    spend.countEl.textContent = `${paid.length} ${paid.length === 1 ? 'payment' : 'payments'}`;
+
+    spend.listEl.innerHTML = '';
+    if (paid.length === 0) {
+      spend.emptyEl.classList.remove('hidden');
+      spend.listEl.classList.add('hidden');
+    } else {
+      spend.emptyEl.classList.add('hidden');
+      spend.listEl.classList.remove('hidden');
+      paid.forEach(b => spend.listEl.appendChild(recentRowEl(b)));
+    }
+  }
+
+  function openSpend() {
+    renderSpend();
+    openModal(spend.overlay, spend.modal);
+  }
+  function closeSpend() { closeModal(spend.overlay, spend.modal); }
+
+  spend.overlay.addEventListener('click', closeSpend);
+  $('spendBack').addEventListener('click', closeSpend);
+
+  summaryEl.addEventListener('click', openSpend);
+  summaryEl.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openSpend(); }
+  });
 
   // ───────────────────────────────────────────────────────────────────
   // Recently paid section (bottom of bills home)
@@ -3480,6 +3564,7 @@
       payState           = null;
       closeSearchBar();
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
+      if (!spend.modal.hidden) closeModal(spend.overlay, spend.modal);
       if (!dt.modal.hidden) closeModal(dt.overlay, dt.modal);
       if (!pay.modal.hidden) closeModal(pay.overlay, pay.modal);
       hideToast();
