@@ -3551,6 +3551,7 @@
     ab.submit.textContent = 'Saving…';
 
     try {
+      let writePromise;
       if (editingBillId) {
         // Edit: send ONLY fields the user actually changed (field-level
         // diff). If two people edit different fields concurrently, neither
@@ -3581,12 +3582,12 @@
           return;
         }
         console.log('[bills] edit patch (changed fields only)', meaningfulKeys);
-        await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', editingBillId), patch);
+        writePromise = updateDoc(doc(db, 'households', currentHouseholdId, 'bills', editingBillId), patch);
       } else {
         // Reuse the ref pre-generated when a receipt was attached, so the
         // stored blob path (bills/{id}/…) matches the doc we're creating.
         const newRef = abState.newBillRef || doc(collection(db, 'households', currentHouseholdId, 'bills'));
-        await setDoc(newRef, {
+        writePromise = setDoc(newRef, {
           name:        abState.name.trim(),
           amount:      Number(abState.amount),
           currency:    abState.currency || 'INR',
@@ -3603,6 +3604,14 @@
           ...auditMeta(),
         });
       }
+      // Optimistic close: offline persistence applies the write to the local
+      // cache immediately (the feed updates via onSnapshot), but the promise
+      // resolves only on the server ack — awaiting it can hang "Saving…".
+      // Surface only a genuine sync failure, as a toast (modal already closed).
+      writePromise.catch(err => {
+        console.error('[bills] save sync failed', err);
+        showToast("Couldn't sync the bill — check your connection and try again.");
+      });
       closeAddBill(true);
     } catch (err) {
       console.error('[bills] save failed', err);
