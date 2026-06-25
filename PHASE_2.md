@@ -161,10 +161,19 @@ the schema — parse `content[0].text`.
   initiated, so we never spend API on an attach the user didn't intend.
 - Tap → loading state → POST to `/api/extract` with the receipt `url` +
   `kind` + the user's Firebase ID token → populate the form.
-- **Population policy: fill blank fields only.** Never clobber a value the
-  user already typed. (For a new bill, all fields are blank → fills
-  everything; for an edit, fills only the gaps.) Then re-paint the form and
-  toast "Filled from receipt — review and save."
+- **Population & comparison (original vs extracted):**
+  - **Blank fields** → filled with the extracted value automatically.
+  - **Fields the user already typed that *differ*** from the extracted value
+    → never silently changed. They surface in an "original vs extracted"
+    comparison: each row shows **Your entry** vs **From receipt**, and the
+    user picks per field (default = keep their entry). Fields where the two
+    agree, or where extraction is empty, stay as the user's.
+  - **No conflicts** (typical new bill — everything blank) → skip the
+    comparison entirely; just fill and toast "Filled from receipt — review
+    and save."
+  - The comparison is a compact review sheet; on confirm, the chosen values
+    land in the form. (Mirrors DayOS's pick-which-to-keep flow.) Always ends
+    at the existing review-and-Save step — extraction never writes a bill.
 - **Low confidence / not-a-bill:** if `confidence == "low"`, don't auto-fill
   silently — show a gentle note ("Couldn't read this clearly — please check
   the fields") and still offer the best-guess values for the blank fields.
@@ -185,8 +194,9 @@ the schema — parse `content[0].text`.
 1. `/api/extract.js` — function with ID-token verify + SSRF guard + the
    Claude call + schema. Set `ANTHROPIC_API_KEY` in Vercel. Verify with a
    curl/console call before any UI.
-2. Client — "Auto-fill from receipt" button, the fetch, fill-blank-only
-   population, loading/error/low-confidence states.
+2. Client — "Auto-fill from receipt" button, the fetch, blank-fill +
+   original-vs-extracted comparison sheet for conflicts, loading/error/
+   low-confidence states.
 3. Polish + test on real Indian bills (electricity, broadband, credit card,
    a staff-salary note, a PDF), then ship.
 
@@ -194,8 +204,9 @@ the schema — parse `content[0].text`.
 
 1. **Add `ANTHROPIC_API_KEY` in Vercel** → Project → Settings → Environment
    Variables (Production + Preview). This is the gate for sub-task 1.
-2. Confirm the two UX calls above (auto-fill *button* vs auto-run; fill-blank
-   -only) — recommendations noted; happy to change.
+2. UX decisions (resolved): **Auto-fill button** (user-initiated) +
+   **original-vs-extracted comparison** for any field where a manual entry
+   disagrees with the receipt (blanks just fill).
 
 ## Test gate
 
