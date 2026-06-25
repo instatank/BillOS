@@ -5,6 +5,19 @@ bill, shared across the household. Foundation for Phase 2 (AI extraction
 reads this same image). Based on the DayOS attachments guide, adapted for
 BillBud's shared-household + field-merge sync model.
 
+## Status — built, pending real-device verification
+
+- [x] 1. Storage rules (household-membership) + SDK wiring + `attachments:[]` on create
+- [x] 2. Upload pipeline (compress, resumable+progress, replace/clear, blob cleanup)
+- [x] 3. Capture UI in Add/Edit modal (camera / upload, progress, replace, remove)
+- [x] 4. Detail-view receipt row + full-screen preview (image overlay; PDF iOS routing)
+- [x] 5. Cache hygiene — `no-cache` on HTML, SW `VERSION` bump (rest of §12 already present)
+
+Remaining: cross-user + **real-iPhone-PWA** verification (test gate below), then
+merge `claude/trusting-albattani-8qgpvj` → `claude/design-system` to ship.
+Optional polish deferred: a paperclip badge on feed cards; a visible UI build
+version string.
+
 ## Scope (agreed)
 
 - **Types:** images (JPEG/PNG/HEIC) **+ PDF**. No Office/iWork/zip — those
