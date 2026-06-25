@@ -1061,6 +1061,16 @@
   .attach-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
   .attach-link { background: none; border: none; padding: 4px 6px; font-size: 12.5px; color: var(--accent); cursor: pointer; font-weight: 600; font-family: inherit; }
   .attach-link.danger { color: var(--danger); }
+  .att-open { width: 100%; font-family: inherit; cursor: pointer; text-align: left; }
+  .attach-open-ic { color: var(--text-muted); flex-shrink: 0; display: flex; align-items: center; }
+  .att-viewer { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.92); display: flex; flex-direction: column; }
+  .att-viewer[hidden] { display: none; }
+  .att-viewer-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-elev-1); border-bottom: 1px solid var(--border); }
+  .att-viewer-title { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .att-viewer-open { text-decoration: none; }
+  .att-viewer-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 8px; }
+  .att-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .att-viewer-body iframe { width: 100%; height: 100%; border: 0; background: #fff; }
 </style>
 </head>
 <body>
@@ -1482,6 +1492,10 @@
           <div class="kv-label">Notes</div>
           <div id="dtNotes" style="font-size: 14px; color: var(--text); line-height: 1.45;"></div>
         </div>
+        <div id="dtReceiptRow" class="kv-row hidden" style="flex-direction: column; align-items: stretch; text-align: left; gap: 6px;">
+          <div class="kv-label">Receipt</div>
+          <div id="dtReceipt"></div>
+        </div>
         <div class="kv-row" style="flex-direction: column; align-items: stretch; text-align: left; gap: 4px;">
           <div class="kv-label">Added</div>
           <div id="dtAdded" style="font-size: 14px; color: var(--text);"></div>
@@ -1499,6 +1513,18 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- ─── Receipt preview (full-screen, above all modals) ──────── -->
+<div id="attViewer" class="att-viewer" hidden role="dialog" aria-modal="true" aria-label="Receipt preview">
+  <div class="att-viewer-bar">
+    <button id="attViewerClose" class="nav-btn" aria-label="Close preview">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+    <div id="attViewerTitle" class="att-viewer-title">Receipt</div>
+    <a id="attViewerOpen" class="nav-btn nav-btn-pill att-viewer-open" target="_blank" rel="noopener">Open ↗</a>
+  </div>
+  <div id="attViewerBody" class="att-viewer-body"></div>
 </div>
 
 <!-- ─── Pay bill sheet (z-index above the detail modal) ──────── -->
@@ -1822,22 +1848,8 @@
     if (prevItem?.storagePath && prevItem.id !== item?.id) await deleteAttachmentBlob(prevItem.storagePath);
   }
 
-  // TEMP smoke test (removed when capture UI lands in sub-task 3): proves the
-  // deployed Storage rules accept write→read→delete for a household member.
-  // Run in the browser console, signed in & in a household:  __attachTest()
-  window.__attachTest = async () => {
-    if (!currentHouseholdId) return console.error('[attachTest] no household — sign in first');
-    const blob = await new Promise(r => { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#2e7d32'; x.fillRect(0, 0, 16, 16); c.toBlob(r, 'image/png'); });
-    try {
-      const up = await uploadBlobAttachment(blob, { hid: currentHouseholdId, billId: '__smoketest__', ext: 'png', mime: 'image/png', onProgress: p => console.log('[attachTest] upload', p + '%') });
-      console.log('[attachTest] ✅ uploaded & readable:', up.url);
-      await deleteAttachmentBlob(up.storagePath);
-      console.log('[attachTest] ✅ deleted — Storage rules OK (write/read/delete all pass)');
-    } catch (e) {
-      console.error('[attachTest] ❌ failed:', e?.code || e?.message || e,
-        '\nIf permission-denied: rules not published, or you are not a member of this household.');
-    }
-  };
+  // (Dev smoke-test hook removed in sub-task 4 — the receipt UI now exercises
+  //  upload / read / delete end to end.)
 
   function categoryIcon(cat) {
     // SVG strings — return innerHTML for the icon. 18px viewbox, currentColor.
@@ -3031,6 +3043,7 @@
   const ATTACH_PDF_ICON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`;
   const ATTACH_CAMERA_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
   const ATTACH_UPLOAD_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`;
+  const ATTACH_OPEN_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v7H3V3h7"/></svg>`;
 
   // Paint the receipt slot from abState.attachment / abState._uploading.
   function renderAttachSlot() {
@@ -3357,6 +3370,8 @@
     mode:     $('dtMode'),
     notesRow: $('dtNotesRow'),
     notes:    $('dtNotes'),
+    receiptRow: $('dtReceiptRow'),
+    receipt:    $('dtReceipt'),
     added:    $('dtAdded'),
     lastPaidRow: $('dtLastPaidRow'),
     lastPaid: $('dtLastPaid'),
@@ -3376,6 +3391,44 @@
   }
   function closeDetail() { closeModal(dt.overlay, dt.modal); activeDetailBillId = null; }
   dt.back.addEventListener('click', closeDetail);
+
+  // ── Receipt preview (Phase 1) ─────────────────────────────────────
+  // iPadOS masquerades as Mac, so check touch points too (PHASE_1.md §11).
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const attViewer = {
+    root:  $('attViewer'),
+    close: $('attViewerClose'),
+    title: $('attViewerTitle'),
+    open:  $('attViewerOpen'),
+    body:  $('attViewerBody'),
+  };
+  function showAttViewer(att, innerHtml) {
+    attViewer.title.textContent = att.title || 'Receipt';
+    attViewer.open.href = att.url;
+    attViewer.body.innerHTML = innerHtml;
+    attViewer.root.hidden = false;
+  }
+  function closeAttViewer() {
+    attViewer.root.hidden = true;
+    attViewer.body.innerHTML = '';            // unload iframe / free image memory
+  }
+  // Image → in-app overlay. PDF → new tab on desktop/Android (native render);
+  // on iOS (incl. installed PWA) embed a viewer + keep the "Open ↗" escape
+  // hatch, because iOS won't render a PDF in an iframe or download from a PWA.
+  function openAttachment(att) {
+    if (!att?.url) return;
+    if (att.kind === 'image') {
+      showAttViewer(att, `<img src="${att.url}" alt="${escapeHtml(att.title || 'Receipt')}" />`);
+    } else if (isIOS) {
+      const v = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(att.url);
+      showAttViewer(att, `<iframe src="${v}" referrerpolicy="no-referrer"></iframe>`);
+    } else {
+      window.open(att.url, '_blank', 'noopener');
+    }
+  }
+  attViewer.close.addEventListener('click', closeAttViewer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !attViewer.root.hidden) closeAttViewer(); });
 
   function paintDetail() {
     const b = bills.find(x => x.id === activeDetailBillId);
@@ -3421,6 +3474,24 @@
       dt.notesRow.classList.remove('hidden');
     } else {
       dt.notesRow.classList.add('hidden');
+    }
+
+    // Receipt (Phase 1) — tap to preview full-screen.
+    const att = b.attachments && b.attachments[0];
+    if (att && att.url) {
+      const thumb = att.kind === 'image'
+        ? `<div class="attach-thumb"><img src="${att.url}" loading="lazy" alt="Receipt" /></div>`
+        : `<div class="attach-thumb">${ATTACH_PDF_ICON}</div>`;
+      dt.receipt.innerHTML = `<button type="button" class="attach-filled att-open">
+          ${thumb}
+          <div class="attach-meta"><div class="attach-name">${escapeHtml(att.title || 'Receipt')}</div><div class="attach-sub">${att.kind === 'image' ? 'Image' : 'PDF'}${att.size ? ' · ' + fmtBytes(att.size) : ''} · Tap to open</div></div>
+          <span class="attach-open-ic">${ATTACH_OPEN_ICON}</span>
+        </button>`;
+      dt.receipt.querySelector('.att-open').addEventListener('click', () => openAttachment(att));
+      dt.receiptRow.classList.remove('hidden');
+    } else {
+      dt.receipt.innerHTML = '';
+      dt.receiptRow.classList.add('hidden');
     }
 
     const addedBy = b.createdBy ? memberLabel(b.createdBy) : '—';
