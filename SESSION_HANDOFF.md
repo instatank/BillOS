@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (last updated mid-build, SW v0.4.12)
+## Where things stand (Phase 1 + 2 shipped, SW v0.4.24)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,7 +17,54 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.12`. Use `v0.4.13`, etc.
+  clients evict the old shell. Currently `v0.4.24`. Bump on every ship.
+- **Recent dev workflow**: work was done on feature branch
+  `claude/trusting-albattani-8qgpvj` and shipped by **fast-forwarding it onto
+  `claude/design-system`** (`git push origin <feature>:claude/design-system`).
+  Both branches are in sync at `v0.4.24`. (Committing straight to
+  `claude/design-system` works too — either is fine.)
+- **No build/lint step.** The whole app is one inline `<script type="module">`.
+  Syntax-check before shipping by extracting it and running `node --check`
+  (see any recent commit's flow).
+
+## Receipts & AI extraction (Phase 1 + 2 — SHIPPED & live)
+
+Both phases are built, shipped, and the user is actively testing. Full design
+docs: **`PHASE_1.md`** (attachments) and **`PHASE_2.md`** (AI extraction, incl.
+the exact extraction prompt). Setup that is already DONE: Storage rules
+deployed; `ANTHROPIC_API_KEY` set in Vercel env.
+
+- **Phase 1 — receipts.** One receipt (image or PDF) per bill. Single
+  "Upload receipt / bill" button in the Add/Edit modal → native picker
+  (camera/library/files). Images compress to 1600px JPEG client-side; PDFs
+  stored as-is. Storage path `households/{hid}/bills/{billId}/{attId}.{ext}`;
+  bill doc carries `attachments[]` (0–1 items; array shape leaves room for
+  multi later). Detail view shows the receipt + tap-to-open full-screen viewer
+  (image overlay; PDF → new tab on desktop, embedded Google viewer + "Open ↗"
+  on iOS; safe-area inset so the ✕ clears the notch). Feed cards show a
+  paperclip when a bill has a receipt. Tap-to-open also works from the Edit
+  modal. Rules in `storage.rules` (household membership via cross-service
+  `firestore.get`) — **deploy separately**: `firebase deploy --only storage`
+  (Vercel does NOT deploy them).
+- **Phase 2 — AI extraction.** "✨ AI Auto Extract" (glowy accent button) on an
+  attached receipt → Vercel serverless function **`api/extract.js`** (Claude
+  **Sonnet 4.6**, vision + structured output; JSON schema matches the app's
+  `cat`/`freq`/`currency` enums) → pre-fills the form. The function verifies
+  the caller's Firebase ID token (RS256 vs Google `securetoken` certs, no
+  `firebase-admin`) and host-allowlists the Storage URL (anti-SSRF). Blank
+  fields auto-fill; a field that conflicts with a manual entry opens a
+  comparison sheet (tickboxes; default = **Use AI extraction**, flip to **Keep
+  original**). PDFs are rendered to a single **page-1 ~1500px image**
+  client-side via pdf.js (CDN, lazy-loaded) so a multi-page statement costs ~1
+  image, not N pages (this was a real cost bug — fixed). Cost ≈ ₹0.5–1/scan.
+- **Key gotcha fixed this session — optimistic writes.** Firestore offline
+  persistence makes `await setDoc/updateDoc` resolve only on the *server ack*,
+  which can stall; the local cache applies the write instantly (feed updates
+  via `onSnapshot`). Awaiting it froze the receipt slot at "Uploading 100%" and
+  hung the bill save at "Saving…". Fix: **never block UI on a write promise** —
+  update the UI immediately, persist in the background, `.catch` → toast. See
+  `onAttachPicked`, `onAttachRemove`, `submitAddBill`. (Mark Paid keeps its
+  transaction — it genuinely needs the server round-trip.)
 
 ## What's built
 
@@ -98,6 +145,26 @@ of iteration. Highlights:
   not yet tested** at time of writing — see "Next up" #2.
 
 ## Next up / open ideas (not started)
+
+### Phase 2 follow-ups (current priority — pick up here)
+
+0a. **Finish testing extraction & tune the prompt.** The user is mid-testing
+   AI Auto Extract across real bills (electricity, broadband, credit-card PDF,
+   staff salary, etc.). If a field or bill type reads weak, tune `SYSTEM_PROMPT`
+   in `api/extract.js` and keep `PHASE_2.md` in sync. Also confirm per-scan cost
+   dropped after the page-1 PDF fix (Anthropic console → Usage).
+0b. **(Optional) PDF re-extract CORS edge case.** Re-extracting a PDF that was
+   attached in a *previous* session (no local File in memory) falls back to
+   fetching the Storage URL; if the bucket blocks cross-origin fetch it drops to
+   the full-PDF (pricier) path. The common flow (attach → extract same session)
+   always uses the cheap page-1 path. To cover the edge case, set a Firebase
+   Storage CORS config allowing the app origin (`gsutil cors set`).
+0c. **(Optional) Optimistic Pause/Cancel/Reactivate.** These still `await` their
+   single-field `updateDoc` and could hang on the same offline-persistence ack
+   lag. Give them the same optimistic treatment if it surfaces. (Mark Paid must
+   stay awaited — transaction.)
+
+### Older open ideas (pre-Phase-1)
 
 1. **PWA polish** — icons are wired up (`/icons/icon-{192,512}.png`,
    `icon-maskable-512.png`, `apple-touch-icon-180.png`, `/favicon.png`,
