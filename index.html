@@ -1072,6 +1072,16 @@
   .att-viewer-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
   .att-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .att-viewer-body iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+  .attach-autofill { width: 100%; margin-top: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 13.5px; }
+  .cmp-intro { font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+  .cmp-row { display: flex; flex-direction: column; gap: 6px; }
+  .cmp-field { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-dim); }
+  .cmp-opts { display: flex; gap: 8px; }
+  .cmp-opt { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--bg-elev-1); cursor: pointer; font-family: inherit; }
+  .cmp-opt.active { border-color: var(--accent); background: var(--accent-soft); }
+  .cmp-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); }
+  .cmp-opt.active .cmp-tag { color: var(--accent); }
+  .cmp-val { font-size: 14px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
@@ -1524,6 +1534,29 @@
     <a id="attViewerOpen" class="nav-btn nav-btn-pill att-viewer-open" target="_blank" rel="noopener">Open ↗</a>
   </div>
   <div id="attViewerBody" class="att-viewer-body"></div>
+</div>
+
+<!-- ─── Receipt vs your entries (auto-fill conflict picker) ───── -->
+<div id="cmpOverlay" class="modal-overlay" hidden style="z-index: 120;"></div>
+<div id="cmpSheet" class="modal sheet" hidden role="dialog" aria-modal="true" aria-label="Review receipt details" style="z-index: 130;">
+  <div class="modal-inner">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="modal-header">
+      <button id="cmpClose" class="nav-btn" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="modal-title">Receipt vs your entries</div>
+      <span style="width: 38px;"></span>
+    </div>
+    <div class="modal-body field-stack">
+      <div id="cmpIntro" class="cmp-intro"></div>
+      <div id="cmpRows" class="field-stack"></div>
+      <div class="field-row" style="margin-top: 4px;">
+        <button id="cmpKeepAll" type="button" class="btn btn-ghost" style="flex: 1;">Keep all mine</button>
+        <button id="cmpApply" type="button" class="btn btn-primary" style="flex: 2;">Apply</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ─── Pay bill sheet (z-index above the detail modal) ──────── -->
@@ -3045,6 +3078,7 @@
   const ATTACH_UPLOAD_ICON =`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`;
   const ATTACH_OPEN_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v7H3V3h7"/></svg>`;
   const ATTACH_CLIP_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
+  const ATTACH_SPARK_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.3 5.3 1.7-5.3 1.7L12 16.5l-1.7-5.3L5 9.5l5.3-1.7z"/><path d="M19 3l.6 1.9L21.5 5.5l-1.9.6L19 8l-.6-1.9L16.5 5.5l1.9-.6z"/></svg>`;
 
   // Paint the receipt slot from abState.attachment / abState._uploading.
   function renderAttachSlot() {
@@ -3072,7 +3106,8 @@
         <button type="button" class="attach-link" data-act="replace">Replace</button>
         <button type="button" class="attach-link danger" data-act="remove">Remove</button>
       </div>
-    </div>`;
+    </div>
+    <button type="button" class="btn btn-soft attach-autofill" data-act="autofill"${abState._extracting ? ' disabled' : ''}>${abState._extracting ? 'Reading bill…' : ATTACH_SPARK_ICON + ' Auto-fill from receipt'}</button>`;
   }
 
   function renderCurrencyBtn() {
@@ -3168,6 +3203,7 @@
       attachment:  (prefill?.attachments && prefill.attachments[0]) || null,
       newBillRef:  null,    // lazily pre-generated bill ref for a NEW-bill receipt
       _uploading:  false,
+      touched:     {},      // fields the user actually edited (for auto-fill conflict detection)
     };
     // Snapshot original values for field-level diffing at submit, so two
     // people editing different fields concurrently don't clobber each
@@ -3256,9 +3292,149 @@
     if (act === 'open') openAttachment(abState.attachment);
     else if (act === 'file' || act === 'replace') ab.attachFile.click();  // native picker: camera / library / files
     else if (act === 'remove') onAttachRemove();
+    else if (act === 'autofill') runAutofill();
   });
   ab.attachFile.addEventListener('change', () => { const f = ab.attachFile.files?.[0]; ab.attachFile.value = ''; onAttachPicked(f); });
-  ab.name.addEventListener('input', () => { abState.name = ab.name.value; abValidate(); });
+
+  // ── Auto-fill from receipt (Phase 2) ──────────────────────────────
+  // Extracted fields → form fields. Blank/untouched fields fill silently;
+  // fields the user set that disagree surface in the comparison sheet.
+  const EXTRACT_FIELDS = [
+    { key: 'name',       from: 'name',      label: 'Name' },
+    { key: 'amount',     from: 'amount',    label: 'Amount' },
+    { key: 'currency',   from: 'currency',  label: 'Currency' },
+    { key: 'cat',        from: 'category',  label: 'Category' },
+    { key: 'freq',       from: 'frequency', label: 'Frequency' },
+    { key: 'nextDueYMD', from: 'dueDate',   label: 'Next due' },
+    { key: 'notes',      from: 'notes',     label: 'Notes' },
+  ];
+  function extractedPresent(key, v) {
+    if (v == null) return false;
+    if (key === 'amount') return Number(v) > 0;
+    return String(v).trim() !== '';
+  }
+  // A field counts as a "manual entry" worth comparing: in edit mode the bill's
+  // existing value is manual; in new mode only a field the user actually touched.
+  function fieldIsManual(key) {
+    if (abState.touched[key]) return true;
+    if (!editingBillId) return false;
+    const v = abState[key];
+    if (key === 'amount') return Number(v) > 0;
+    return v != null && String(v).trim() !== '';
+  }
+  function fieldsEqual(key, a, b) {
+    if (key === 'amount') return Number(a) === Number(b);
+    return String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+  }
+  function applyExtracted(key, v) {
+    if (key === 'amount') abState.amount = Number(v) || 0;
+    else if (key === 'currency') abState.currency = (v === 'USD') ? 'USD' : 'INR';
+    else abState[key] = v;
+  }
+  function fmtFieldVal(key, v) {
+    if (v == null || v === '') return '—';
+    if (key === 'amount') return fmtMoney(Number(v), abState.currency);
+    if (key === 'currency') return v === 'USD' ? 'USD ($)' : 'INR (₹)';
+    if (key === 'cat') return CATEGORIES[v]?.label || v;
+    if (key === 'freq') return FREQ_LABEL[v] || v;
+    if (key === 'nextDueYMD') { const d = dateFromBill(v); return d ? fmtDate(d) : String(v); }
+    return String(v);
+  }
+
+  async function runAutofill() {
+    const att = abState?.attachment;
+    if (!att?.url || abState._extracting) return;
+    if (!currentUser) { showAbError('Sign in to use auto-fill.'); return; }
+    showAbError(null);
+    abState._extracting = true; renderAttachSlot();
+    try {
+      const idToken = await currentUser.getIdToken();
+      const res = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ url: att.url, kind: att.kind }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok || !json.data) throw new Error(json.error || ('http ' + res.status));
+      abState._extracting = false;
+
+      const data = json.data;
+      const conflicts = [];
+      for (const f of EXTRACT_FIELDS) {
+        const ev = data[f.from];
+        if (!extractedPresent(f.key, ev)) continue;
+        const cur = abState[f.key];
+        if (fieldsEqual(f.key, cur, ev)) continue;
+        if (fieldIsManual(f.key)) conflicts.push({ ...f, mine: cur, theirs: ev });
+        else applyExtracted(f.key, ev);                 // blank / untouched → fill
+      }
+      abPaint();
+
+      const lowConf = data.confidence === 'low';
+      if (conflicts.length) {
+        openCompare(conflicts, lowConf);
+      } else {
+        showToast(lowConf ? "Couldn't read it clearly — please check the fields."
+                          : 'Filled from receipt — review and save.');
+      }
+    } catch (e) {
+      console.error('[extract] client', e);
+      abState._extracting = false; renderAttachSlot();
+      const m = String(e?.message || '');
+      showAbError(
+        /invalid token|401/.test(m) ? 'Auto-fill auth failed — please try again.'
+        : /not configured|500/.test(m) ? "Auto-fill isn't available right now."
+        : "Couldn't read the bill — try again, or fill it in manually.");
+    }
+  }
+
+  // ── Comparison sheet (original vs extracted, conflict-only) ────────
+  const cmp = {
+    overlay: $('cmpOverlay'), sheet: $('cmpSheet'),
+    close:   $('cmpClose'),   rows: $('cmpRows'), intro: $('cmpIntro'),
+    keepAll: $('cmpKeepAll'), apply: $('cmpApply'),
+  };
+  let cmpState = null;   // { conflicts, picks: { key: 'mine' | 'receipt' } }
+
+  function openCompare(conflicts, lowConf) {
+    cmpState = { conflicts, picks: {} };
+    conflicts.forEach(c => { cmpState.picks[c.key] = 'mine'; });   // default: keep mine
+    cmp.intro.textContent = lowConf
+      ? 'The receipt was hard to read. Pick what to keep for these fields:'
+      : 'These differ from the receipt. Pick what to keep:';
+    renderCompare();
+    openModal(cmp.overlay, cmp.sheet);
+  }
+  function renderCompare() {
+    cmp.rows.innerHTML = cmpState.conflicts.map(c => `
+      <div class="cmp-row">
+        <div class="cmp-field">${escapeHtml(c.label)}</div>
+        <div class="cmp-opts">
+          <button type="button" class="cmp-opt${cmpState.picks[c.key] === 'mine' ? ' active' : ''}" data-key="${escapeHtml(c.key)}" data-pick="mine">
+            <span class="cmp-tag">Your entry</span><span class="cmp-val">${escapeHtml(fmtFieldVal(c.key, c.mine))}</span>
+          </button>
+          <button type="button" class="cmp-opt${cmpState.picks[c.key] === 'receipt' ? ' active' : ''}" data-key="${escapeHtml(c.key)}" data-pick="receipt">
+            <span class="cmp-tag">From receipt</span><span class="cmp-val">${escapeHtml(fmtFieldVal(c.key, c.theirs))}</span>
+          </button>
+        </div>
+      </div>`).join('');
+  }
+  cmp.rows.addEventListener('click', (e) => {
+    const opt = e.target.closest('.cmp-opt'); if (!opt) return;
+    cmpState.picks[opt.dataset.key] = opt.dataset.pick;
+    renderCompare();
+  });
+  function closeCompare() { closeModal(cmp.overlay, cmp.sheet); cmpState = null; }
+  cmp.close.addEventListener('click', closeCompare);
+  cmp.overlay.addEventListener('click', closeCompare);
+  cmp.keepAll.addEventListener('click', closeCompare);   // keep mine = apply nothing
+  cmp.apply.addEventListener('click', () => {
+    cmpState.conflicts.forEach(c => { if (cmpState.picks[c.key] === 'receipt') applyExtracted(c.key, c.theirs); });
+    closeCompare();
+    abPaint();
+    showToast('Updated from receipt — review and save.');
+  });
+  ab.name.addEventListener('input', () => { abState.name = ab.name.value; abState.touched.name = true; abValidate(); });
   ab.amount.addEventListener('input', () => {
     // Allow digits + a single decimal point (USD bills can have cents).
     let cleaned = ab.amount.value.replace(/[^0-9.]/g, '');
@@ -3266,16 +3442,18 @@
     if (dot !== -1) cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
     if (cleaned !== ab.amount.value) ab.amount.value = cleaned;
     abState.amount = Number(cleaned) || 0;
+    abState.touched.amount = true;
     abValidate();
   });
   ab.currencyBtn.addEventListener('click', () => {
     abState.currency = abState.currency === 'USD' ? 'INR' : 'USD';
+    abState.touched.currency = true;
     renderCurrencyBtn();
   });
-  ab.freq.addEventListener('change',    () => { abState.freq = ab.freq.value; abValidate(); });
-  ab.cat.addEventListener('change',     () => { abState.cat = ab.cat.value; });
-  ab.nextDue.addEventListener('change', () => { abState.nextDueYMD = ab.nextDue.value; });
-  ab.notes.addEventListener('input',    () => { abState.notes = ab.notes.value; });
+  ab.freq.addEventListener('change',    () => { abState.freq = ab.freq.value; abState.touched.freq = true; abValidate(); });
+  ab.cat.addEventListener('change',     () => { abState.cat = ab.cat.value; abState.touched.cat = true; });
+  ab.nextDue.addEventListener('change', () => { abState.nextDueYMD = ab.nextDue.value; abState.touched.nextDueYMD = true; });
+  ab.notes.addEventListener('input',    () => { abState.notes = ab.notes.value; abState.touched.notes = true; });
 
   async function submitAddBill() {
     if (!currentUser || !currentHouseholdId) { showAbError('You need to be in a household to add bills.'); return; }
