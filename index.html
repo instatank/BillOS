@@ -1700,6 +1700,121 @@
     };
   }
 
+  // ───────────────────────────────────────────────────────────────────
+  // Attachments (Phase 1) — one receipt (image or PDF) per bill.
+  // Stored at households/{hid}/bills/{billId}/{attId}.{ext}. The bill doc
+  // carries attachments[] (0–1 items in V1; array shape leaves room for
+  // multiple later). All writes go through their own updateDoc({attachments})
+  // — never the edit field-diff — so they can't be dropped (PHASE_1.md §9).
+  // ───────────────────────────────────────────────────────────────────
+  const ATTACH_MAX_BYTES = 10 * 1024 * 1024;          // client cap; rules enforce 15MB
+  const ATTACH_OK_TYPE   = /^image\/|^application\/pdf$/;
+
+  function extOf(name) {
+    const m = /\.([a-z0-9]+)$/i.exec(name || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  // Downscale + re-encode phone photos: tiny storage/bandwidth, and bill text
+  // stays legible for Phase 2 AI extraction. Honors EXIF orientation; falls
+  // back to the original blob for HEIC (can't decode off-Safari) or any
+  // decode/encode failure.
+  async function compressImage(file, maxDim = 1600, quality = 0.82) {
+    const original = { blob: file, ext: extOf(file.name) || 'img', mime: file.type || 'application/octet-stream' };
+    let bmp;
+    try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch {
+      try { bmp = await createImageBitmap(file); }
+      catch { return original; }                       // HEIC etc → upload untouched
+    }
+    try {
+      const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+      bmp.close?.();
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', quality));
+      return blob ? { blob, ext: 'jpg', mime: 'image/jpeg' } : original;
+    } catch { return original; }
+  }
+
+  // Resumable upload of a blob to a bill's attachment path. onProgress(0–100).
+  // Stores INLINE (contentType only) — never Content-Disposition:attachment,
+  // which blanks iOS Safari (PHASE_1.md §11). Returns the storage half of the
+  // attachment record; buildBillAttachment adds kind/title/createdAt.
+  function uploadBlobAttachment(blob, { hid, billId, ext, mime, onProgress }) {
+    return new Promise((resolve, reject) => {
+      const id = crypto.randomUUID();
+      const safeExt = (ext || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+      const path = `households/${hid}/bills/${billId}/${id}.${safeExt}`;
+      const task = uploadBytesResumable(storageRef(storage, path), blob,
+        { contentType: mime || 'application/octet-stream' });
+      task.on('state_changed',
+        s => { if (onProgress && s.totalBytes) onProgress(Math.round(s.bytesTransferred / s.totalBytes * 100)); },
+        reject,
+        async () => {
+          try { resolve({ id, url: await getDownloadURL(task.snapshot.ref), storagePath: path, mime: mime || blob.type, size: blob.size, ext: safeExt }); }
+          catch (e) { reject(e); }
+        });
+    });
+  }
+
+  // Validate → (compress if image) → upload → build the attachment record.
+  // Throws on no-household, bad type, or oversize. The caller persists it via
+  // setBillAttachment and must clean up the uploaded blob if that write fails.
+  async function buildBillAttachment(file, { hid, billId, onProgress }) {
+    if (!hid || !billId) throw new Error('Missing household or bill.');
+    const isPdf = (file.type === 'application/pdf') || extOf(file.name) === 'pdf';
+    if (!ATTACH_OK_TYPE.test(file.type || '') && !isPdf) throw new Error('Only images and PDFs are supported.');
+    if (file.size > ATTACH_MAX_BYTES) throw new Error('File is too large (max 10 MB).');
+
+    const isImage = (file.type || '').startsWith('image/');
+    let blob = file, ext = extOf(file.name) || (isImage ? 'jpg' : 'bin');
+    let mime = file.type || (isPdf ? 'application/pdf' : 'application/octet-stream');
+    if (isImage) ({ blob, ext, mime } = await compressImage(file));
+
+    const up = await uploadBlobAttachment(blob, { hid, billId, ext, mime, onProgress });
+    return {
+      ...up,
+      kind:      mime === 'application/pdf' ? 'file' : 'image',
+      title:     file.name || (isPdf ? 'Document.pdf' : 'Photo.jpg'),
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser?.uid || null,
+    };
+  }
+
+  // Delete a stored blob (best-effort; ignore not-found on cleanup).
+  async function deleteAttachmentBlob(storagePath) {
+    if (!storagePath) return;
+    try { await deleteObject(storageRef(storage, storagePath)); }
+    catch (e) { if (e?.code !== 'storage/object-not-found') console.warn('[attach] blob delete failed', e); }
+  }
+
+  // Persist the single attachment onto a bill (replace) or clear it (item=null).
+  // Writes the doc first, then deletes the superseded blob so we never orphan.
+  async function setBillAttachment(billId, item, prevItem) {
+    await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', billId),
+      { attachments: item ? [item] : [], ...auditMeta() });
+    if (prevItem?.storagePath && prevItem.id !== item?.id) await deleteAttachmentBlob(prevItem.storagePath);
+  }
+
+  // TEMP smoke test (removed when capture UI lands in sub-task 3): proves the
+  // deployed Storage rules accept write→read→delete for a household member.
+  // Run in the browser console, signed in & in a household:  __attachTest()
+  window.__attachTest = async () => {
+    if (!currentHouseholdId) return console.error('[attachTest] no household — sign in first');
+    const blob = await new Promise(r => { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#2e7d32'; x.fillRect(0, 0, 16, 16); c.toBlob(r, 'image/png'); });
+    try {
+      const up = await uploadBlobAttachment(blob, { hid: currentHouseholdId, billId: '__smoketest__', ext: 'png', mime: 'image/png', onProgress: p => console.log('[attachTest] upload', p + '%') });
+      console.log('[attachTest] ✅ uploaded & readable:', up.url);
+      await deleteAttachmentBlob(up.storagePath);
+      console.log('[attachTest] ✅ deleted — Storage rules OK (write/read/delete all pass)');
+    } catch (e) {
+      console.error('[attachTest] ❌ failed:', e?.code || e?.message || e,
+        '\nIf permission-denied: rules not published, or you are not a member of this household.');
+    }
+  };
+
   function categoryIcon(cat) {
     // SVG strings — return innerHTML for the icon. 18px viewbox, currentColor.
     const map = {
