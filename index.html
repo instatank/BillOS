@@ -1103,6 +1103,10 @@
   .cmp-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); }
   .cmp-opt.active .cmp-tag { color: var(--accent); }
   .cmp-val { font-size: 14px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmp-opt-head { display: flex; align-items: center; gap: 7px; }
+  .cmp-box { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border); flex-shrink: 0; position: relative; }
+  .cmp-opt.active .cmp-box { border-color: var(--accent); background: var(--accent); }
+  .cmp-opt.active .cmp-box::after { content: ''; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid var(--accent-ink); border-width: 0 2px 2px 0; transform: rotate(45deg); }
 </style>
 </head>
 <body>
@@ -1573,7 +1577,7 @@
       <div id="cmpIntro" class="cmp-intro"></div>
       <div id="cmpRows" class="field-stack"></div>
       <div class="field-row" style="margin-top: 4px;">
-        <button id="cmpKeepAll" type="button" class="btn btn-ghost" style="flex: 1;">Keep all mine</button>
+        <button id="cmpKeepAll" type="button" class="btn btn-ghost" style="flex: 1;">Keep all original</button>
         <button id="cmpApply" type="button" class="btn btn-primary" style="flex: 2;">Apply</button>
       </div>
     </div>
@@ -3419,10 +3423,10 @@
 
   function openCompare(conflicts, lowConf) {
     cmpState = { conflicts, picks: {} };
-    conflicts.forEach(c => { cmpState.picks[c.key] = 'mine'; });   // default: keep mine
+    conflicts.forEach(c => { cmpState.picks[c.key] = 'receipt'; });   // default: use AI extraction
     cmp.intro.textContent = lowConf
-      ? 'The receipt was hard to read. Pick what to keep for these fields:'
-      : 'These differ from the receipt. Pick what to keep:';
+      ? 'The receipt was hard to read. AI values are selected — switch any back to your original, then Apply:'
+      : 'AI values are selected by default. Switch any field back to your original, then Apply:';
     renderCompare();
     openModal(cmp.overlay, cmp.sheet);
   }
@@ -3432,10 +3436,12 @@
         <div class="cmp-field">${escapeHtml(c.label)}</div>
         <div class="cmp-opts">
           <button type="button" class="cmp-opt${cmpState.picks[c.key] === 'mine' ? ' active' : ''}" data-key="${escapeHtml(c.key)}" data-pick="mine">
-            <span class="cmp-tag">Your entry</span><span class="cmp-val">${escapeHtml(fmtFieldVal(c.key, c.mine))}</span>
+            <span class="cmp-opt-head"><span class="cmp-box"></span><span class="cmp-tag">Keep original</span></span>
+            <span class="cmp-val">${escapeHtml(fmtFieldVal(c.key, c.mine))}</span>
           </button>
           <button type="button" class="cmp-opt${cmpState.picks[c.key] === 'receipt' ? ' active' : ''}" data-key="${escapeHtml(c.key)}" data-pick="receipt">
-            <span class="cmp-tag">From receipt</span><span class="cmp-val">${escapeHtml(fmtFieldVal(c.key, c.theirs))}</span>
+            <span class="cmp-opt-head"><span class="cmp-box"></span><span class="cmp-tag">Use AI extraction</span></span>
+            <span class="cmp-val">${escapeHtml(fmtFieldVal(c.key, c.theirs))}</span>
           </button>
         </div>
       </div>`).join('');
@@ -3448,7 +3454,7 @@
   function closeCompare() { closeModal(cmp.overlay, cmp.sheet); cmpState = null; }
   cmp.close.addEventListener('click', closeCompare);
   cmp.overlay.addEventListener('click', closeCompare);
-  cmp.keepAll.addEventListener('click', closeCompare);   // keep mine = apply nothing
+  cmp.keepAll.addEventListener('click', () => { closeCompare(); showToast('Kept your original entries.'); });
   cmp.apply.addEventListener('click', () => {
     cmpState.conflicts.forEach(c => { if (cmpState.picks[c.key] === 'receipt') applyExtracted(c.key, c.theirs); });
     closeCompare();
