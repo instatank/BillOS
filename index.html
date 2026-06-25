@@ -3282,12 +3282,22 @@
       abState._uploading = false;
       abState.attachment = item;
       abState._localPdf = (item.kind === 'file') ? file : null;   // keep PDF for page-1 extraction
-      if (editingBillId) {
-        await setBillAttachment(editingBillId, item, prev);          // persist now (own write)
-      } else if (prev?.storagePath && prev.id !== item.id) {
-        await deleteAttachmentBlob(prev.storagePath);                // replaced a pending blob
-      }
+      // Reflect the finished upload NOW, before the doc write. With offline
+      // persistence the updateDoc promise can stay pending on the server ack
+      // even though the local cache already applied it — awaiting it here would
+      // freeze the slot at "Uploading… 100%" and keep Save disabled.
       renderAttachSlot();
+      abValidate();
+      if (editingBillId) {
+        // Persist the link in the background; the local cache applies it
+        // instantly, so the bill keeps it. Surface only a genuine failure.
+        setBillAttachment(editingBillId, item, prev).catch(e => {
+          console.error('[attach] persist failed', e);
+          showAbError("Saved the file but couldn't link it — tap Update to retry.");
+        });
+      } else if (prev?.storagePath && prev.id !== item.id) {
+        deleteAttachmentBlob(prev.storagePath);                    // replaced a pending blob
+      }
     } catch (e) {
       console.error('[attach] upload failed', e);
       abState._uploading = false;
