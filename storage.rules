@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// BillBud Storage security rules — Phase 1 (bill attachments)
+//
+// Layout:
+//   households/{hid}/bills/{billId}/{attId}.{ext}   // one receipt per bill
+//
+// Mirrors the Firestore bill rule: only members of the household may
+// read/write/delete. Membership is read cross-service from Firestore.
+// Writes are additionally capped at 15 MB and limited to image/* + PDF
+// (matches the Phase 1 scope — images and PDFs only).
+//
+// ⚠️ Deploy SEPARATELY from Vercel:  firebase deploy --only storage
+//    (or paste into Firebase console → Storage → Rules). The web host
+//    does not deploy these — forget, and uploads fail permission-denied.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /households/{hid}/{allPaths=**} {
+
+      function isMember() {
+        return request.auth != null
+          && request.auth.uid in
+             firestore.get(/databases/(default)/documents/households/$(hid)).data.members;
+      }
+
+      allow read, delete: if isMember();
+
+      allow write: if isMember()
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+  }
+}

@@ -1548,6 +1548,9 @@
   import {
     getMessaging, getToken, deleteToken, isSupported as messagingSupported
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+  import {
+    getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey:            "AIzaSyCNc_WFupX5qJEULas4_Ovi7wnzsdVoUXY",
@@ -1583,6 +1586,10 @@
     console.warn('[firestore] persistence unavailable, using memory cache', err);
     db = getFirestore(app);
   }
+
+  // Firebase Storage — bill attachments (Phase 1). Bucket is already in
+  // firebaseConfig; rules live in storage.rules (deploy separately).
+  const storage = getStorage(app);
 
   await setPersistence(auth, browserLocalPersistence);
 
@@ -3048,6 +3055,7 @@
           nextDue:     timestampFromYMD(abState.nextDueYMD),
           status:      'active',
           notes:       (abState.notes || '').trim() || null,
+          attachments: [],
           createdAt:   serverTimestamp(),
           createdBy:   currentUser.uid,
           ...auditMeta(),
