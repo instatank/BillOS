@@ -1410,9 +1410,7 @@
       </div>
 
       <div class="field">
-        <span class="field-label">Receipt <span style="color: var(--text-muted); font-weight: 400;">(optional)</span></span>
         <div id="abAttach"></div>
-        <input id="abAttachCamera" type="file" accept="image/*" capture="environment" hidden />
         <input id="abAttachFile" type="file" accept="image/*,application/pdf" hidden />
       </div>
 
@@ -3026,7 +3024,6 @@
     notes:     $('abNotes'),
     currencyBtn: $('abCurrencyBtn'),
     attach:        $('abAttach'),
-    attachCamera:  $('abAttachCamera'),
     attachFile:    $('abAttachFile'),
   };
   let abState = null;
@@ -3041,8 +3038,7 @@
 
   // PDF tile icon (when the attachment is a document, not an image).
   const ATTACH_PDF_ICON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`;
-  const ATTACH_CAMERA_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
-  const ATTACH_UPLOAD_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`;
+  const ATTACH_UPLOAD_ICON =`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`;
   const ATTACH_OPEN_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v7H3V3h7"/></svg>`;
 
   // Paint the receipt slot from abState.attachment / abState._uploading.
@@ -3057,8 +3053,7 @@
     const a = abState?.attachment;
     if (!a) {
       el.innerHTML = `<div class="attach-empty">
-        <button type="button" class="btn btn-soft attach-btn" data-act="camera">${ATTACH_CAMERA_ICON} Take photo</button>
-        <button type="button" class="btn btn-soft attach-btn" data-act="file">${ATTACH_UPLOAD_ICON} Upload image / PDF</button>
+        <button type="button" class="btn btn-soft attach-btn" data-act="file">${ATTACH_UPLOAD_ICON} Upload receipt / bill</button>
       </div>`;
       return;
     }
@@ -3253,12 +3248,10 @@
   ab.attach.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]'); if (!btn) return;
     const act = btn.dataset.act;
-    if (act === 'camera') ab.attachCamera.click();
-    else if (act === 'file' || act === 'replace') ab.attachFile.click();
+    if (act === 'file' || act === 'replace') ab.attachFile.click();  // native picker: camera / library / files
     else if (act === 'remove') onAttachRemove();
   });
-  ab.attachCamera.addEventListener('change', () => { const f = ab.attachCamera.files?.[0]; ab.attachCamera.value = ''; onAttachPicked(f); });
-  ab.attachFile.addEventListener('change',   () => { const f = ab.attachFile.files?.[0];   ab.attachFile.value = '';   onAttachPicked(f); });
+  ab.attachFile.addEventListener('change', () => { const f = ab.attachFile.files?.[0]; ab.attachFile.value = ''; onAttachPicked(f); });
   ab.name.addEventListener('input', () => { abState.name = ab.name.value; abValidate(); });
   ab.amount.addEventListener('input', () => {
     // Allow digits + a single decimal point (USD bills can have cents).
