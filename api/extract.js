@@ -100,15 +100,24 @@ module.exports = async (req, res) => {
     catch { res.status(401).json({ error: 'invalid token' }); return; }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const { url, kind } = body;
-    if (!url || !isAllowedStorageUrl(url)) { res.status(400).json({ error: 'invalid url' }); return; }
+    const { url, kind, imageBase64, mediaType } = body;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) { res.status(500).json({ error: 'server not configured' }); return; }
 
-    const sourceBlock = kind === 'file'
-      ? { type: 'document', source: { type: 'url', url } }
-      : { type: 'image', source: { type: 'url', url } };
+    let sourceBlock;
+    if (imageBase64) {
+      // Client-rendered single image (e.g. PDF page 1) — bounds cost to one image.
+      const mt = mediaType || 'image/jpeg';
+      if (!/^image\/(jpeg|png|webp)$/.test(mt)) { res.status(400).json({ error: 'bad media type' }); return; }
+      if (typeof imageBase64 !== 'string' || imageBase64.length > 5_000_000) { res.status(400).json({ error: 'image too large' }); return; }
+      sourceBlock = { type: 'image', source: { type: 'base64', media_type: mt, data: imageBase64 } };
+    } else {
+      if (!url || !isAllowedStorageUrl(url)) { res.status(400).json({ error: 'invalid url' }); return; }
+      sourceBlock = kind === 'file'
+        ? { type: 'document', source: { type: 'url', url } }
+        : { type: 'image', source: { type: 'url', url } };
+    }
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
