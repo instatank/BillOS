@@ -1044,6 +1044,23 @@
 
   /* tabular nums everywhere amounts/dates appear */
   .num { font-variant-numeric: tabular-nums; }
+
+  /* ── Bill attachment (Phase 1) — one receipt per bill ── */
+  .attach-empty { display: flex; gap: 8px; flex-wrap: wrap; }
+  .attach-btn { flex: 1; min-width: 130px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 13.5px; padding: 11px 12px; }
+  .attach-busy { display: flex; align-items: center; gap: 10px; padding: 6px 2px; }
+  .attach-progress { flex: 1; height: 6px; border-radius: 99px; background: var(--bg-elev-2); border: 1px solid var(--border-soft); overflow: hidden; }
+  .attach-progress-bar { height: 100%; background: var(--accent); width: 0; transition: width .15s ease; }
+  .attach-pct { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+  .attach-filled { display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--bg-elev-2); }
+  .attach-thumb { width: 52px; height: 52px; border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; background: var(--bg-elev-1); border: 1px solid var(--border-soft); display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+  .attach-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .attach-meta { flex: 1; min-width: 0; }
+  .attach-name { font-size: 13.5px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .attach-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .attach-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .attach-link { background: none; border: none; padding: 4px 6px; font-size: 12.5px; color: var(--accent); cursor: pointer; font-weight: 600; font-family: inherit; }
+  .attach-link.danger { color: var(--danger); }
 </style>
 </head>
 <body>
@@ -1380,6 +1397,13 @@
       <div class="field">
         <label class="field-label" for="abNotes">Notes <span style="color: var(--text-muted); font-weight: 400;">(optional)</span></label>
         <input id="abNotes" class="input" type="text" maxlength="200" placeholder="e.g. ₹5k advance paid" autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <span class="field-label">Receipt <span style="color: var(--text-muted); font-weight: 400;">(optional)</span></span>
+        <div id="abAttach"></div>
+        <input id="abAttachCamera" type="file" accept="image/*" capture="environment" hidden />
+        <input id="abAttachFile" type="file" accept="image/*,application/pdf" hidden />
       </div>
 
       <div class="field-row" style="margin-top: 4px;">
@@ -2989,8 +3013,54 @@
     mode:      $('abMode'),
     notes:     $('abNotes'),
     currencyBtn: $('abCurrencyBtn'),
+    attach:        $('abAttach'),
+    attachCamera:  $('abAttachCamera'),
+    attachFile:    $('abAttachFile'),
   };
   let abState = null;
+
+  // Human-readable file size for the attachment row.
+  function fmtBytes(n) {
+    if (!n && n !== 0) return '';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  // PDF tile icon (when the attachment is a document, not an image).
+  const ATTACH_PDF_ICON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`;
+  const ATTACH_CAMERA_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+  const ATTACH_UPLOAD_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`;
+
+  // Paint the receipt slot from abState.attachment / abState._uploading.
+  function renderAttachSlot() {
+    const el = ab.attach;
+    if (!el) return;
+    if (abState?._uploading) {
+      const pct = abState._uploadPct || 0;
+      el.innerHTML = `<div class="attach-busy"><div class="attach-progress"><div class="attach-progress-bar" style="width:${pct}%"></div></div><span class="attach-pct">Uploading… ${pct}%</span></div>`;
+      return;
+    }
+    const a = abState?.attachment;
+    if (!a) {
+      el.innerHTML = `<div class="attach-empty">
+        <button type="button" class="btn btn-soft attach-btn" data-act="camera">${ATTACH_CAMERA_ICON} Take photo</button>
+        <button type="button" class="btn btn-soft attach-btn" data-act="file">${ATTACH_UPLOAD_ICON} Upload image / PDF</button>
+      </div>`;
+      return;
+    }
+    const thumb = a.kind === 'image'
+      ? `<div class="attach-thumb"><img src="${a.url}" loading="lazy" alt="Receipt" /></div>`
+      : `<div class="attach-thumb">${ATTACH_PDF_ICON}</div>`;
+    el.innerHTML = `<div class="attach-filled">
+      ${thumb}
+      <div class="attach-meta"><div class="attach-name">${escapeHtml(a.title || 'Receipt')}</div><div class="attach-sub">${a.kind === 'image' ? 'Image' : 'PDF'}${a.size ? ' · ' + fmtBytes(a.size) : ''}</div></div>
+      <div class="attach-actions">
+        <button type="button" class="attach-link" data-act="replace">Replace</button>
+        <button type="button" class="attach-link danger" data-act="remove">Remove</button>
+      </div>
+    </div>`;
+  }
 
   function renderCurrencyBtn() {
     ab.currencyBtn.innerHTML = `${moneySymbol(abState.currency)}<span class="cur-caret" aria-hidden="true">▾</span>`;
@@ -3061,6 +3131,7 @@
     renderCurrencyBtn();
     renderOwnerPicker();
     renderModePicker();
+    renderAttachSlot();
     abValidate();
   }
   function showAbError(msg) {
@@ -3081,6 +3152,9 @@
       nextDueYMD:  prefill?.nextDue ? ymdLocalIST(dateFromBill(prefill.nextDue)) : '',
       paymentMode: prefill?.paymentMode || 'manual',
       notes:       prefill?.notes || '',
+      attachment:  (prefill?.attachments && prefill.attachments[0]) || null,
+      newBillRef:  null,    // lazily pre-generated bill ref for a NEW-bill receipt
+      _uploading:  false,
     };
     // Snapshot original values for field-level diffing at submit, so two
     // people editing different fields concurrently don't clobber each
@@ -3092,11 +3166,86 @@
     openModal(ab.overlay, ab.modal);
     setTimeout(() => ab.name.focus(), 60);
   }
-  function closeAddBill() { closeModal(ab.overlay, ab.modal); editingBillId = null; }
+  function closeAddBill(committed = false) {
+    // A NEW-bill receipt uploads before the bill doc is saved. If the user
+    // bails without saving, delete the orphan blob. Edit-mode receipts are
+    // already persisted (own write), so there's nothing to clean there.
+    if (!committed && !editingBillId && abState?.attachment?.storagePath) {
+      deleteAttachmentBlob(abState.attachment.storagePath);
+    }
+    closeModal(ab.overlay, ab.modal); editingBillId = null;
+  }
 
-  ab.cancel.addEventListener('click', closeAddBill);
-  ab.cancelBtn.addEventListener('click', closeAddBill);
-  ab.overlay.addEventListener('click', closeAddBill);
+  // Wrapped (not passed directly) so the click event isn't read as `committed`.
+  ab.cancel.addEventListener('click', () => closeAddBill());
+  ab.cancelBtn.addEventListener('click', () => closeAddBill());
+  ab.overlay.addEventListener('click', () => closeAddBill());
+
+  // ── Attachment capture (Phase 1) ──────────────────────────────────
+  // Target bill id: the existing bill in edit mode; for a NEW bill we
+  // pre-generate the doc ref the first time so the storage path is stable
+  // and the eventual setDoc reuses the same id.
+  function attachTargetBillId() {
+    if (editingBillId) return editingBillId;
+    if (!abState.newBillRef) abState.newBillRef = doc(collection(db, 'households', currentHouseholdId, 'bills'));
+    return abState.newBillRef.id;
+  }
+
+  async function onAttachPicked(file) {
+    if (!file || !abState) return;
+    showAbError(null);
+    const prev = abState.attachment;                 // for replace cleanup
+    abState._uploading = true; abState._uploadPct = 0;
+    ab.submit.disabled = true;
+    renderAttachSlot();
+    try {
+      const billId = attachTargetBillId();
+      const item = await buildBillAttachment(file, {
+        hid: currentHouseholdId, billId,
+        onProgress: p => { abState._uploadPct = p; renderAttachSlot(); },
+      });
+      abState._uploading = false;
+      abState.attachment = item;
+      if (editingBillId) {
+        await setBillAttachment(editingBillId, item, prev);          // persist now (own write)
+      } else if (prev?.storagePath && prev.id !== item.id) {
+        await deleteAttachmentBlob(prev.storagePath);                // replaced a pending blob
+      }
+      renderAttachSlot();
+    } catch (e) {
+      console.error('[attach] upload failed', e);
+      abState._uploading = false;
+      renderAttachSlot();
+      showAbError("Couldn't attach the receipt: " + (e?.message || e?.code || e));
+    } finally {
+      abValidate();
+    }
+  }
+
+  async function onAttachRemove() {
+    if (!abState?.attachment) return;
+    if (!confirm('Remove this receipt?')) return;
+    const a = abState.attachment;
+    abState.attachment = null;
+    renderAttachSlot();
+    try {
+      if (editingBillId) await setBillAttachment(editingBillId, null, a);
+      else await deleteAttachmentBlob(a.storagePath);
+    } catch (e) {
+      console.error('[attach] remove failed', e);
+      showAbError("Couldn't remove the receipt: " + (e?.message || e?.code || e));
+    }
+  }
+
+  ab.attach.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]'); if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'camera') ab.attachCamera.click();
+    else if (act === 'file' || act === 'replace') ab.attachFile.click();
+    else if (act === 'remove') onAttachRemove();
+  });
+  ab.attachCamera.addEventListener('change', () => { const f = ab.attachCamera.files?.[0]; ab.attachCamera.value = ''; onAttachPicked(f); });
+  ab.attachFile.addEventListener('change',   () => { const f = ab.attachFile.files?.[0];   ab.attachFile.value = '';   onAttachPicked(f); });
   ab.name.addEventListener('input', () => { abState.name = ab.name.value; abValidate(); });
   ab.amount.addEventListener('input', () => {
     // Allow digits + a single decimal point (USD bills can have cents).
@@ -3158,7 +3307,9 @@
         console.log('[bills] edit patch (changed fields only)', meaningfulKeys);
         await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', editingBillId), patch);
       } else {
-        const newRef = doc(collection(db, 'households', currentHouseholdId, 'bills'));
+        // Reuse the ref pre-generated when a receipt was attached, so the
+        // stored blob path (bills/{id}/…) matches the doc we're creating.
+        const newRef = abState.newBillRef || doc(collection(db, 'households', currentHouseholdId, 'bills'));
         await setDoc(newRef, {
           name:        abState.name.trim(),
           amount:      Number(abState.amount),
@@ -3170,13 +3321,13 @@
           nextDue:     timestampFromYMD(abState.nextDueYMD),
           status:      'active',
           notes:       (abState.notes || '').trim() || null,
-          attachments: [],
+          attachments: abState.attachment ? [abState.attachment] : [],
           createdAt:   serverTimestamp(),
           createdBy:   currentUser.uid,
           ...auditMeta(),
         });
       }
-      closeAddBill();
+      closeAddBill(true);
     } catch (err) {
       console.error('[bills] save failed', err);
       showAbError("Couldn't save the bill: " + (err.message || err.code));
