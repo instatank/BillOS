@@ -3799,33 +3799,34 @@
     }
   }
 
-  async function billUpdate(patch) {
+  function billUpdate(patch) {
+    // Optimistic write (same pattern as submitAddBill / onAttachPicked):
+    // offline persistence applies the update to the local cache instantly —
+    // the bills onSnapshot repaints the feed AND the open detail right away —
+    // but the promise resolves only on the SERVER ack, which can stall on a
+    // weak connection. So never await it; surface only genuine failures.
     const b = bills.find(x => x.id === activeDetailBillId);
     if (!b || !currentHouseholdId) return;
-    try {
-      await updateDoc(doc(db, 'households', currentHouseholdId, 'bills', b.id), {
-        ...patch, ...auditMeta(),
-      });
-    } catch (err) {
-      console.error('[bills] update failed', err);
-      alert("Couldn't update bill: " + (err.message || err.code));
-    }
+    updateDoc(doc(db, 'households', currentHouseholdId, 'bills', b.id), {
+      ...patch, ...auditMeta(),
+    }).catch(err => {
+      console.error('[bills] update sync failed', err);
+      showToast("Couldn't sync the change — check your connection and try again.");
+    });
   }
-  dt.pause.addEventListener('click', async () => {
+  dt.pause.addEventListener('click', () => {
     const b = bills.find(x => x.id === activeDetailBillId);
     if (!b) return;
-    await billUpdate({ status: b.status === 'paused' ? 'active' : 'paused' });
-    paintDetail();
+    billUpdate({ status: b.status === 'paused' ? 'active' : 'paused' });
   });
-  dt.cancel.addEventListener('click', async () => {
+  dt.cancel.addEventListener('click', () => {
     const b = bills.find(x => x.id === activeDetailBillId);
     if (!b) return;
     if (b.status === 'cancelled') {
-      await billUpdate({ status: 'active' });
+      billUpdate({ status: 'active' });   // Reactivate
     } else {
-      await billUpdate({ status: 'cancelled' });
+      billUpdate({ status: 'cancelled' });
     }
-    paintDetail();
   });
   dt.edit.addEventListener('click', () => {
     const b = bills.find(x => x.id === activeDetailBillId);

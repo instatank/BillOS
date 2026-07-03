@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (Phase 1 + 2 shipped, SW v0.4.24)
+## Where things stand (Phase 1 + 2 shipped, SW v0.4.25)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,7 +17,7 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.24`. Bump on every ship.
+  clients evict the old shell. Currently `v0.4.25`. Bump on every ship.
 - **Recent dev workflow**: work was done on feature branch
   `claude/trusting-albattani-8qgpvj` and shipped by **fast-forwarding it onto
   `claude/design-system`** (`git push origin <feature>:claude/design-system`).
@@ -159,10 +159,12 @@ of iteration. Highlights:
    the full-PDF (pricier) path. The common flow (attach → extract same session)
    always uses the cheap page-1 path. To cover the edge case, set a Firebase
    Storage CORS config allowing the app origin (`gsutil cors set`).
-0c. **(Optional) Optimistic Pause/Cancel/Reactivate.** These still `await` their
-   single-field `updateDoc` and could hang on the same offline-persistence ack
-   lag. Give them the same optimistic treatment if it surfaces. (Mark Paid must
-   stay awaited — transaction.)
+0c. **FIXED (2026-07-02) — Optimistic Pause/Cancel/Reactivate.** `billUpdate`
+   no longer `await`s its single-field `updateDoc`: the write is issued in the
+   background, the open detail repaints instantly via the bills `onSnapshot`
+   (local cache), and only genuine sync failures surface via `.catch` → toast —
+   same pattern as `submitAddBill`/`onAttachPicked`. (Mark Paid stays awaited —
+   transaction.) SW bumped to v0.4.25. Still owed: verify on the phone.
 
 ### Older open ideas (pre-Phase-1)
 
