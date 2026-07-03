@@ -4,6 +4,19 @@ Project context for Claude Code sessions. Source of truth for *how* we build, no
 
 The product was previously named BillOS. References to that name in the historical product docs (`BillOS_PRD.md`, `BillOS_MVP_Shell_Prompt.md`) and reference design files (`billos-*.jsx`) have not been renamed — they're frozen artefacts.
 
+## Shared playbook (cross-project — read at session start)
+
+The single source of truth for global working rules, transferable lessons, and the
+ship / sync / deploy / verify SOPs is the **`playbook/` folder of the
+`instatank/time-tracker` repo**. Every session: read `playbook/PLAYBOOK.md` —
+locally at `/home/user/time-tracker/playbook/PLAYBOOK.md` if that repo is cloned,
+else fetch it via the GitHub tools (`get_file_contents`, repo `instatank/time-tracker`,
+path `playbook/PLAYBOOK.md`). Before ending a session that shipped commits, run the
+**`/wrap`** skill (a Stop hook nudges once if forgotten) — it reconciles
+`SESSION_HANDOFF.md` against reality, appends friction cards to `LEARNINGS.md`, and
+asks the founder the two learning questions from `playbook/LEARNING_METHOD.md`.
+The pre-push ritual is the **`/ship`** skill.
+
 ## Read-first
 - `SESSION_HANDOFF.md` — current state of the build + what's next. Read this FIRST.
 - `PRODUCT_BUILD_SOP.md` — build philosophy, mistakes-to-avoid, decision principles
