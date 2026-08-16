@@ -84,7 +84,7 @@ The pre-push ritual is the **`/ship`** skill.
 - **Receipts (Phase 1).** One receipt (image or PDF) per bill. Firebase Storage at `households/{hid}/bills/{billId}/{attId}.{ext}`; bill doc carries `attachments[]` (0–1 items). Rules in `storage.rules` (household membership) — **deploy separately** with `firebase deploy --only storage` (Vercel does NOT deploy them). Full design + iOS gotchas: `PHASE_1.md`.
 - **AI extraction (Phase 2).** "AI Auto Extract" reads the receipt and pre-fills the Add/Edit form via the Vercel serverless function `api/extract.js` (Claude **Sonnet 4.6**, vision + structured output). API key lives in Vercel env `ANTHROPIC_API_KEY` — **never in the client**. Blank fields auto-fill; conflicts open a comparison sheet (default = use AI). PDFs are rendered to a single page-1 image client-side (pdf.js from CDN) to cap cost. Full design + the exact extraction prompt: `PHASE_2.md`.
 
-## Auto-renew auto-settle (shipped)
+## Auto-renew auto-settle (built 16 Aug 2026 — on the feature branch, not yet on production)
 - Bills on payment mode **auto-renew** stay on the line-up right up to the due
   date (that window is the point — it's when you pause/cancel/change them), then
   get **marked paid by the system the day after** and rolled to the next cycle.

@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (Phase 1 + 2 shipped, SW v0.4.26)
+## Where things stand (Phase 1 + 2 live on SW v0.4.25; auto-renew auto-settle built, unshipped)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,15 +17,17 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.26`. Bump on every ship.
-- **Recent dev workflow**: work was done on feature branch
-  `claude/trusting-albattani-8qgpvj` and shipped by **fast-forwarding it onto
-  `claude/design-system`** (`git push origin <feature>:claude/design-system`).
-  Both branches are in sync at `v0.4.24`. (Committing straight to
-  `claude/design-system` works too — either is fine.)
+  clients evict the old shell. Bump on every ship.
+- **Branch state (16 Aug 2026)**: production `claude/design-system` is at
+  **`v0.4.25`** (commit `1b9eabf`). The auto-renew auto-settle work sits
+  **unshipped** on `claude/auto-renew-bills-auto-payment-lesqrq` at
+  **`v0.4.26`** (commit `e2c3db5`). Ship it by fast-forwarding:
+  `git push origin claude/auto-renew-bills-auto-payment-lesqrq:claude/design-system`.
+  (Committing straight to `claude/design-system` works too — either is fine.)
 - **No build/lint step.** The whole app is one inline `<script type="module">`.
-  Syntax-check before shipping by extracting it and running `node --check`
-  (see any recent commit's flow).
+  The gate is `bash scripts/check.sh` — it extracts the inline module and
+  `node --check`s it plus `sw.js`, `api/*.js` and `functions/*.js`, then runs
+  the auto-settle date-math tests.
 
 ## Receipts & AI extraction (Phase 1 + 2 — SHIPPED & live)
 
