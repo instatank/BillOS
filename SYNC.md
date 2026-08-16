@@ -101,6 +101,47 @@ If a remote change happens during that window, Undo overwrites it. With
 a 2-member household and a 5-second window, this is acceptable. Document
 this if we open it up to larger groups later.
 
+### Auto-settle (auto-renew bills) — transaction, two writers
+
+A bill with `paymentMode === 'auto-renew'` clears itself the day after
+its due date: `lastPaidAt` = the **due date** (not the settle date, so a
+bill due 31 Aug still counts in August), `lastPaidAuto: true`,
+`lastPaidNote: null`, `nextDue` advanced one or more cycles.
+
+Two writers run the same rule:
+
+- **Client sweep** (`runAutoSettleSweep` in `index.html`) — fires off the
+  bills `onSnapshot` and on `visibilitychange`.
+- **Cloud Function** `autoSettleAutoRenew` (`functions/index.js`) —
+  00:15 IST daily, so it holds even when nobody opens the app, and so
+  the 08:00 reminder push never calls an auto-renew bill "overdue".
+
+Both settle inside `runTransaction` and **re-evaluate eligibility against
+the fresh doc** (mode, `status === 'active'`, periodic freq, `nextDue`
+strictly before start of today). Consequences:
+
+- Whichever runs second sees a `nextDue` in the future and no-ops. No
+  double advance. Two members' devices sweeping at once is likewise safe.
+- A concurrent pause / cancel / manual Mark Paid always wins — the sweep
+  re-reads and backs off. Nothing gets resurrected.
+- The walk is a **catch-up loop** (capped at 60 cycles): a bill that sat
+  unopened for months lands on the next future due date in one pass, with
+  `lastPaidAt` on the most recent cycle. Only that one payment is
+  recorded — same single-payment limitation as Mark Paid (see the ledger
+  item under "out of scope").
+- Retry storms are bounded by `autoSettleTried` (`billId@YYYY-MM-DD`, per
+  session), so a write that keeps failing can't loop off the snapshot.
+  A failed settle is not silent: the bill stays visibly overdue on the
+  feed, and the Cloud Function retries at 00:15.
+
+Manual Mark Paid writes `lastPaidAuto: false`, so a hand-settled bill
+stops reporting itself as auto-paid. Both paths snapshot the pre-write
+state for Undo.
+
+Client and function must stay in sync. One deliberate asymmetry: legacy
+bills whose `nextDue` is an ISO **string** (not a Timestamp) settle on
+the client only — the function's `nextDue <` query can't match a string.
+
 ### Pause / Cancel / Reactivate
 
 Plain `updateDoc` with `{ status, ...auditMeta() }`. Idempotent and
@@ -162,6 +203,11 @@ Before declaring a sync-touching change "done":
      monthly bill within a few seconds. Final state: `nextDue` advanced
      exactly one period (not two), one of the two notes wins. No
      duplicate advance.
+   - **Auto-settle**: set an auto-renew bill's next due to yesterday,
+     then load the app in A's and B's browsers at the same time. Exactly
+     one advance, one toast on the device that won, and B's feed shows
+     the new `nextDue` within 2s. Repeat with B pausing the bill a beat
+     before A loads: the pause must stand and no payment gets recorded.
 
 Browser DevTools console must be open during these tests. A silent
 permission-denied or a `ReferenceError` swallowed by an `await` chain

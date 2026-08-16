@@ -84,8 +84,24 @@ The pre-push ritual is the **`/ship`** skill.
 - **Receipts (Phase 1).** One receipt (image or PDF) per bill. Firebase Storage at `households/{hid}/bills/{billId}/{attId}.{ext}`; bill doc carries `attachments[]` (0–1 items). Rules in `storage.rules` (household membership) — **deploy separately** with `firebase deploy --only storage` (Vercel does NOT deploy them). Full design + iOS gotchas: `PHASE_1.md`.
 - **AI extraction (Phase 2).** "AI Auto Extract" reads the receipt and pre-fills the Add/Edit form via the Vercel serverless function `api/extract.js` (Claude **Sonnet 4.6**, vision + structured output). API key lives in Vercel env `ANTHROPIC_API_KEY` — **never in the client**. Blank fields auto-fill; conflicts open a comparison sheet (default = use AI). PDFs are rendered to a single page-1 image client-side (pdf.js from CDN) to cap cost. Full design + the exact extraction prompt: `PHASE_2.md`.
 
+## Auto-renew auto-settle (shipped)
+- Bills on payment mode **auto-renew** stay on the line-up right up to the due
+  date (that window is the point — it's when you pause/cancel/change them), then
+  get **marked paid by the system the day after** and rolled to the next cycle.
+  Manual bills are untouched; payment mode *is* the opt-out.
+- `lastPaidAt` is stamped with the **due date**, not the settle date, so a bill
+  due 31 Aug still lands in August's totals. Auto-settled payments carry
+  `lastPaidAuto: true` (detail view says "Auto-paid by BillBud"; manual Mark
+  Paid writes `false`).
+- Two writers run the same rule and must stay in sync: the client sweep in
+  `index.html` (`runAutoSettleSweep`) and the scheduled Cloud Function
+  `autoSettleAutoRenew` (`functions/index.js`, 00:15 IST — ahead of the 08:00
+  reminder push so an auto-renew bill never pushes as "overdue"). Both settle in
+  a transaction that re-checks eligibility against fresh state, so a concurrent
+  pause/cancel/manual-pay wins and nothing double-advances. Details in `SYNC.md`.
+
 ## Engineering conventions (current)
 - **Deploy:** production branch `claude/design-system` (Vercel auto-deploys on push). Recent work develops on a feature branch and ships by fast-forwarding it onto `claude/design-system` (`git push origin <feature>:claude/design-system`).
-- **Service worker:** bump `VERSION` in `sw.js` on every shippable change so installed PWAs evict the old shell (currently `v0.4.25`).
+- **Service worker:** bump `VERSION` in `sw.js` on every shippable change so installed PWAs evict the old shell (currently `v0.4.26`).
 - **No build/lint step:** the app is one inline `<script type="module">`. Syntax-check before shipping by extracting it and running `node --check`.
 - **Optimistic writes (important):** with Firestore offline persistence, `await setDoc/updateDoc` resolves only on the *server ack*, which can lag/stall — meanwhile the local cache applies the write instantly and the feed updates via `onSnapshot`. So **do NOT block UI (closing a modal, clearing a loading state) on a write promise.** Issue the write, update the UI immediately, surface only genuine failures (`.catch` → toast). This bit us twice (receipt "Uploading 100%", bill "Saving…"); the fixed pattern lives in `onAttachPicked`, `onAttachRemove`, `submitAddBill`, and (since v0.4.25) `billUpdate` (Pause/Cancel/Reactivate). **Exception:** Mark Paid uses a transaction that genuinely needs the server round-trip — leave it awaited.

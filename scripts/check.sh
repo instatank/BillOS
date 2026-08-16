@@ -5,6 +5,8 @@
 # 1. Extracts the inline <script type="module"> from index.html -> node --check
 # 2. node --check every api/*.js Vercel serverless function (no api/*.mjs here)
 # 3. node --check every functions/*.js Cloud Function file
+# 4. Behaviour tests for the auto-renew auto-settle date math (it writes to
+#    bills with nobody watching, so the rule gets a real gate, not just syntax)
 set -e
 cd "$(dirname "$0")/.."
 
@@ -41,5 +43,14 @@ if [ -d functions ]; then
     echo "OK  $f"
   done < <(find functions -maxdepth 1 -name '*.js' -type f)
 fi
+
+# Auto-settle rule: same assertions run against BOTH implementations (the
+# Cloud Function and the client sweep), so the two can't drift apart.
+for t in scripts/test-autosettle-function.js scripts/test-autosettle-client.js; do
+  if [ -f "$t" ]; then
+    node "$t" > /dev/null
+    echo "OK  $t"
+  fi
+done
 
 echo "ALL GATES GREEN"

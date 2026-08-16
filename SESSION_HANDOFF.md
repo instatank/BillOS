@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (Phase 1 + 2 shipped, SW v0.4.25)
+## Where things stand (Phase 1 + 2 shipped, SW v0.4.26)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -17,7 +17,7 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   it cannot push `main` or use the Vercel CLI. Production deploys happen
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
-  clients evict the old shell. Currently `v0.4.25`. Bump on every ship.
+  clients evict the old shell. Currently `v0.4.26`. Bump on every ship.
 - **Recent dev workflow**: work was done on feature branch
   `claude/trusting-albattani-8qgpvj` and shipped by **fast-forwarding it onto
   `claude/design-system`** (`git push origin <feature>:claude/design-system`).
@@ -65,6 +65,53 @@ deployed; `ANTHROPIC_API_KEY` set in Vercel env.
   update the UI immediately, persist in the background, `.catch` → toast. See
   `onAttachPicked`, `onAttachRemove`, `submitAddBill`. (Mark Paid keeps its
   transaction — it genuinely needs the server round-trip.)
+
+## Auto-renew auto-settle (built 16 Aug 2026 — NOT yet on production)
+
+Founder ask: *"once the due date arrives and passes, ie. the next day, these
+bills can be auto marked as paid and deferred to the following cycle… however
+it's good to have them on the line-up right up till the due date."*
+
+- **The rule** (one place on each side, kept in sync): `paymentMode ===
+  'auto-renew'` + `status === 'active'` + periodic freq (never `one_time`) +
+  `nextDue` strictly before the start of today → mark paid, roll `nextDue`.
+  Payment mode is the opt-out — no new setting.
+- **Two writers.** Client sweep `runAutoSettleSweep()` in `index.html` (runs off
+  the bills `onSnapshot` and on `visibilitychange`, so it fires the moment you
+  open the app) and the scheduled Cloud Function `autoSettleAutoRenew`
+  (`functions/index.js`, `15 0 * * *` Asia/Kolkata). The function is what makes
+  it true when nobody opens the app, and it runs **before** the 08:00 reminder
+  push so an auto-renew bill never pushes as "overdue". Both use a transaction
+  that re-checks eligibility against fresh state → whoever runs second no-ops;
+  a concurrent pause/cancel/manual-pay always wins.
+- **Payment record.** `lastPaidAt` = the **due date** (not the settle date, so
+  a bill due 31 Aug still counts in August), `lastPaidAmount` = bill amount,
+  `lastPaidNote: null`, `lastPaidAuto: true`. Manual Mark Paid now writes
+  `lastPaidAuto: false`. Catch-up loop (cap 60 cycles) walks a long-stale bill
+  to its next future due date in one pass.
+- **What the user sees.** `· AUTO` on the feed card's meta line; a "Marked paid
+  automatically the day after it's due" sub-line on the detail Payment mode row;
+  "Auto-paid by BillBud" on Last paid; an explainer under the payment-mode
+  picker in Add/Edit when auto-renew is picked; and a toast when a sweep fires
+  ("Netflix auto-marked paid · next due 16 Sep", with Undo for a single bill;
+  "N auto-renew bills marked paid" for several).
+- **Tested**: `scripts/test-autosettle-function.js` + `scripts/test-autosettle-client.js`
+  (now part of `bash scripts/check.sh`) run the same assertions against both
+  implementations so they can't drift — IST anchoring, month-end clamping, leap
+  years, year rollover, catch-up, every ineligible case, idempotence. They pull
+  the helpers straight out of the real source, so there's no copy to rot.
+  **Not verified on a phone or against real Firestore** — see the checklist
+  below.
+- **Still owed before it's done:**
+  1. Ship to `claude/design-system` (Vercel prod + the `Deploy Firebase`
+     Action, which is what deploys `autoSettleAutoRenew`). Confirm the Action
+     goes green — the function is new, so watch for IAM/scheduler permissions
+     on first deploy.
+  2. Phone check: set an auto-renew bill's next due to yesterday, open the app,
+     confirm the toast + the roll to the next cycle + "Auto-paid by BillBud" on
+     the detail screen.
+  3. Cross-user check per `SYNC.md` ("Auto-settle" bullet): two browsers loading
+     at once must produce exactly one advance; a pause a beat earlier must stand.
 
 ## What's built
 

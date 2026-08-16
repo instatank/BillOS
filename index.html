@@ -728,6 +728,7 @@
   .owner-pick .seg-key { padding: 9px 6px; font-size: 13px; }
   /* Payment mode picker is 2-column; reuses .owner-pick chrome */
   #abMode { grid-template-columns: repeat(2, 1fr); }
+  .field-hint { margin-top: 8px; font-size: 12.5px; line-height: 1.45; color: var(--text-muted); }
 
   /* segmented chip grid for frequency / owner */
   .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -835,6 +836,8 @@
   .kv-row:last-child { border-bottom: none; }
   .kv-label { flex: 1; font-size: 14px; color: var(--text-dim); }
   .kv-value { font-size: 15px; color: var(--text); font-weight: 500; text-align: right; }
+  /* Second line inside a kv value (e.g. what "Auto-renew" actually does) */
+  .kv-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; margin-top: 2px; line-height: 1.35; }
 
   .detail-actions { padding: 20px 12px 36px; display: flex; flex-direction: column; gap: 8px; }
   .action-row { display: flex; gap: 8px; }
@@ -1438,6 +1441,7 @@
       <div class="field">
         <span class="field-label">Payment mode</span>
         <div id="abMode" class="owner-pick"></div>
+        <div id="abModeHint" class="field-hint hidden">Auto-renew bills are marked paid automatically the day after they're due, and rolled to the next cycle. Pause or cancel before the due date if you don't want that.</div>
       </div>
 
       <div class="field">
@@ -1796,6 +1800,11 @@
     // Anchor at 09:00 IST so day stays stable across timezones.
     const ms = Date.UTC(y, m - 1, d, 3, 30);
     return Timestamp.fromMillis(ms);
+  }
+  // Same 09:00-IST anchoring, but from a Date we already hold.
+  function timestampFromDate(d) {
+    if (!d) return null;
+    return Timestamp.fromMillis(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 3, 30));
   }
 
   // Stamp every collaborative write with who-and-when. Cheap upfront, painful
@@ -2687,6 +2696,10 @@
       renderStackHeader();
       renderChips();
       renderStatusSegment();
+      // Auto-renew bills whose due date has passed clear themselves. Safe
+      // to call on every tick: no candidates → no writes, and a settled
+      // bill's nextDue is in the future so it can't re-trigger.
+      runAutoSettleSweep();
     }, (err) => {
       console.error('[bills] snapshot failed', err);
       // Surface so a silent permission-denied (rules misconfig) is visible
@@ -3034,13 +3047,17 @@
 
     const catLabel = (CATEGORIES[cat]?.label || 'Other').toUpperCase();
     const freqLabel = (FREQ_LABEL[freq] || freq).replace('every ', '').toUpperCase();
+    // Auto-renew bills settle themselves the day after they're due — flag it
+    // on the card so the due window is obviously "your last chance to change
+    // this", not "you forgot to pay".
+    const autoTag = (b.paymentMode === 'auto-renew' && b.status !== 'cancelled') ? ' · AUTO' : '';
     const hasAttachment = !!(b.attachments && b.attachments[0]);
     const attachIc = hasAttachment ? `<span class="bill-attach-ic" title="Has a receipt" aria-label="Has a receipt">${ATTACH_CLIP_ICON}</span>` : '';
 
     card.innerHTML = `
       <div class="bill-row-top">
         <span class="cat-chip cat-${cat} sm">${categoryIcon(cat)}</span>
-        <div class="bill-cat-meta">${catLabel} · ${freqLabel}</div>
+        <div class="bill-cat-meta">${catLabel} · ${freqLabel}${autoTag}</div>
         ${attachIc}
         <div class="due-pill${dueClass}">${dueText}</div>
       </div>
@@ -3083,6 +3100,7 @@
     owner:     $('abOwner'),
     nextDue:   $('abNextDue'),
     mode:      $('abMode'),
+    modeHint:  $('abModeHint'),
     notes:     $('abNotes'),
     currencyBtn: $('abCurrencyBtn'),
     attach:        $('abAttach'),
@@ -3185,6 +3203,9 @@
       b.addEventListener('click', () => { abState.paymentMode = o.id; renderModePicker(); });
       container.appendChild(b);
     });
+    // Spell out what auto-renew does — it now writes to the bill on its own,
+    // so picking it has to be an informed choice.
+    ab.modeHint.classList.toggle('hidden', abState.paymentMode !== 'auto-renew');
   }
   function paymentModeLabel(id) {
     return PAYMENT_MODE_LABELS[id] || '—';
@@ -3739,7 +3760,13 @@
     dt.frequency.textContent = FREQ_LABEL[freq] || freq;
     dt.nextDue.textContent = dueDate ? fmtDate(dueDate) : '—';
     dt.owner.textContent = b.owner === 'shared' ? 'Shared' : memberLabel(b.owner);
-    dt.mode.textContent = paymentModeLabel(b.paymentMode || 'manual');
+    // Auto-renew gets a one-line explainer: this bill clears itself, so the
+    // run-up to the due date is when to pause / cancel / change it.
+    if ((b.paymentMode || 'manual') === 'auto-renew') {
+      dt.mode.innerHTML = `Auto-renew<div class="kv-sub">Marked paid automatically the day after it's due</div>`;
+    } else {
+      dt.mode.textContent = paymentModeLabel(b.paymentMode || 'manual');
+    }
 
     if (b.notes) {
       dt.notes.textContent = b.notes;
@@ -3773,7 +3800,9 @@
     // Last paid info
     const lastPaidDate = dateFromBill(b.lastPaidAt);
     if (lastPaidDate) {
-      const noteSuffix = b.lastPaidNote ? ` · ${escapeHtml(b.lastPaidNote)}` : '';
+      const noteSuffix = b.lastPaidNote
+        ? ` · ${escapeHtml(b.lastPaidNote)}`
+        : (b.lastPaidAuto ? ' · Auto-paid by BillBud' : '');
       dt.lastPaid.innerHTML = `${fmtDate(lastPaidDate)}${noteSuffix}`;
       dt.lastPaidRow.classList.remove('hidden');
     } else {
@@ -4035,6 +4064,7 @@
           lastPaidAt:     fresh.lastPaidAt     ?? null,
           lastPaidNote:   fresh.lastPaidNote   ?? null,
           lastPaidAmount: fresh.lastPaidAmount ?? null,
+          lastPaidAuto:   fresh.lastPaidAuto   ?? false,
           nextDue:        fresh.nextDue        ?? null,
           status:         fresh.status         || 'active',
         };
@@ -4043,6 +4073,7 @@
           lastPaidAt: paidTs,
           lastPaidNote: noteTrim,
           lastPaidAmount: amount,
+          lastPaidAuto: false, // this one was settled by hand
           ...auditMeta(),
         };
 
@@ -4058,8 +4089,7 @@
             : null;
           const newNext = freshNextDate ? advanceNextDue(freshNextDate, freq) : null;
           if (newNext) {
-            const ts = Timestamp.fromMillis(Date.UTC(newNext.getFullYear(), newNext.getMonth(), newNext.getDate(), 3, 30));
-            patch.nextDue = ts;
+            patch.nextDue = timestampFromDate(newNext);
             computedNextDue = newNext;
           }
           // Resume bill if it was paused on the server right now (not when
@@ -4101,6 +4131,141 @@
       showPayError("Couldn't record payment: " + (err.message || err.code || String(err)));
       pay.submit.disabled = false; pay.submit.textContent = original;
     }
+  });
+
+  // ───────────────────────────────────────────────────────────────────
+  // Auto-settle: auto-renew bills clear themselves
+  //
+  // A bill on payment mode "auto-renew" is charged by the bank/merchant
+  // on its own, so nobody should have to tap Mark paid every cycle. It
+  // stays on the line-up right up to its due date (that's the window to
+  // pause / cancel / change it), and the DAY AFTER the due date the app
+  // marks it paid and rolls nextDue to the next cycle.
+  //
+  // Two things run this rule and they must stay in sync:
+  //   - this sweep (fires whenever the app has bills on screen), and
+  //   - the scheduled Cloud Function `autoSettleAutoRenew` in
+  //     functions/index.js (00:15 IST daily — covers the days nobody
+  //     opens the app, and keeps the 08:00 reminder push from calling an
+  //     auto-renew bill "overdue").
+  // Both settle inside a transaction that re-checks eligibility against
+  // fresh server state, so whichever runs second simply no-ops — and a
+  // member's concurrent pause / cancel / manual pay always wins.
+  //
+  // lastPaidAt is stamped with the DUE DATE, not today, so a bill due
+  // 31 Aug that settles on 1 Sep still counts in August's totals.
+  // ───────────────────────────────────────────────────────────────────
+  const PERIODIC_FREQS = ['weekly', 'monthly', 'quarterly', 'yearly'];
+  const MAX_CATCHUP_CYCLES = 60; // weekly bill left for a year ≈ 52
+
+  // The rule, in one place. Returns the passed due date, or null.
+  function autoSettleDueDate(b) {
+    if (!b || b.paymentMode !== 'auto-renew') return null;
+    if ((b.status || 'active') !== 'active') return null;
+    if (!PERIODIC_FREQS.includes(b.freq || b.frequency || 'monthly')) return null;
+    const due = dateFromBill(b.nextDue);
+    if (!due) return null;
+    return startOfDay(due) < startOfDay(new Date()) ? due : null;
+  }
+
+  // `${billId}@${today}` of every bill this session already tried, so a
+  // write that keeps failing can't retry-storm off the bills snapshot.
+  // Keyed by day so an app left open overnight picks up the new day.
+  const autoSettleTried = new Set();
+  let autoSettleRunning = false;
+
+  async function settleAutoRenewBill(billId) {
+    const ref = doc(db, 'households', currentHouseholdId, 'bills', billId);
+    let result = null;
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) return;
+      const fresh = snap.data();
+      const dueDate = autoSettleDueDate(fresh);
+      if (!dueDate) return; // already settled / paused / cancelled elsewhere
+
+      // Walk forward until nextDue lands on or after today, so a bill that
+      // sat unopened for months catches up in one pass.
+      const freq = fresh.freq || fresh.frequency || 'monthly';
+      const todayStart = startOfDay(new Date());
+      let cur = dueDate, settledFor = null, cycles = 0;
+      while (startOfDay(cur) < todayStart && cycles < MAX_CATCHUP_CYCLES) {
+        const next = advanceNextDue(cur, freq);
+        if (!next) break;
+        settledFor = cur;
+        cur = next;
+        cycles++;
+      }
+      if (!settledFor || !cycles) return;
+
+      result = {
+        id: billId,
+        name: fresh.name || 'Bill',
+        nextDue: cur,
+        cycles,
+        prev: {
+          lastPaidAt:     fresh.lastPaidAt     ?? null,
+          lastPaidNote:   fresh.lastPaidNote   ?? null,
+          lastPaidAmount: fresh.lastPaidAmount ?? null,
+          lastPaidAuto:   fresh.lastPaidAuto   ?? false,
+          nextDue:        fresh.nextDue        ?? null,
+        },
+      };
+
+      tx.update(ref, {
+        lastPaidAt: timestampFromDate(settledFor),
+        lastPaidAmount: Number(fresh.amount) || 0,
+        lastPaidNote: null,
+        lastPaidAuto: true,
+        nextDue: timestampFromDate(cur),
+        ...auditMeta(),
+      });
+    });
+    return result;
+  }
+
+  async function runAutoSettleSweep() {
+    if (autoSettleRunning || !currentHouseholdId || !currentUser) return;
+    const todayKey = ymdLocalIST(new Date());
+    const due = bills.filter(b => autoSettleDueDate(b) && !autoSettleTried.has(`${b.id}@${todayKey}`));
+    if (!due.length) return;
+
+    autoSettleRunning = true;
+    const settled = [];
+    try {
+      for (const b of due) {
+        autoSettleTried.add(`${b.id}@${todayKey}`);
+        try {
+          const res = await settleAutoRenewBill(b.id);
+          if (res) settled.push(res);
+        } catch (err) {
+          // Offline / permission-denied / lost race. Logged, never silent:
+          // the Cloud Function or the next app open picks it up.
+          console.error('[auto-renew] settle failed', b.id, err);
+        }
+      }
+    } finally {
+      autoSettleRunning = false;
+    }
+
+    if (!settled.length) return;
+    console.log('[auto-renew] auto-settled', settled.map(s => s.name));
+
+    if (settled.length === 1) {
+      const s = settled[0];
+      const ref = doc(db, 'households', currentHouseholdId, 'bills', s.id);
+      showToast(`${s.name} auto-marked paid · next due ${fmtDate(s.nextDue)}`, {
+        duration: 6000,
+        undo: async () => { await updateDoc(ref, { ...s.prev, ...auditMeta() }); },
+      });
+    } else {
+      showToast(`${settled.length} auto-renew bills marked paid`, { duration: 6000 });
+    }
+  }
+
+  // A tab left open past midnight settles when it comes back to the front.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) runAutoSettleSweep();
   });
 
   // ───────────────────────────────────────────────────────────────────
@@ -4180,6 +4345,7 @@
       editingBillId      = null;
       activeDetailBillId = null;
       payState           = null;
+      autoSettleTried.clear();
       closeSearchBar();
       if (!ab.modal.hidden) closeModal(ab.overlay, ab.modal);
       if (!spend.modal.hidden) closeModal(spend.overlay, spend.modal);
