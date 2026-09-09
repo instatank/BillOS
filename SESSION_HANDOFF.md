@@ -2,7 +2,7 @@
 
 Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 
-## Where things stand (Phase 1 + 2 live on SW v0.4.25; auto-renew auto-settle built, unshipped)
+## Where things stand (SW v0.4.27 live — Phase 1 + 2, auto-renew auto-settle, long-press copy)
 
 - **Product**: BillBud (was "BillOS" — old name frozen in `BillOS_PRD.md`,
   `BillOS_MVP_Shell_Prompt.md`, `billos-*.jsx`, `BillOS Prototype.html`).
@@ -18,16 +18,53 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
   via the GitHub→Vercel git integration on push.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
   clients evict the old shell. Bump on every ship.
-- **Branch state (16 Aug 2026)**: production `claude/design-system` is at
-  **`v0.4.25`** (commit `1b9eabf`). The auto-renew auto-settle work sits
-  **unshipped** on `claude/auto-renew-bills-auto-payment-lesqrq` at
-  **`v0.4.26`** (commit `e2c3db5`). Ship it by fast-forwarding:
-  `git push origin claude/auto-renew-bills-auto-payment-lesqrq:claude/design-system`.
+- **Branch state (09 Sep 2026)**: production `claude/design-system` is at
+  **`v0.4.27`** (commit `f2b981d`), Vercel deploy READY. Nothing is sitting
+  unshipped. The auto-renew auto-settle work (`e2c3db5`, v0.4.26) reached
+  production in the `e586c03` merge — an earlier handoff called it unshipped;
+  it isn't. Long-press copy (`f2b981d`, v0.4.27) shipped on top of it from
+  `claude/bill-longpress-copy-d1brhk`.
+  Fast-forward is how feature branches ship:
+  `git push origin <feature>:claude/design-system`.
   (Committing straight to `claude/design-system` works too — either is fine.)
 - **No build/lint step.** The whole app is one inline `<script type="module">`.
   The gate is `bash scripts/check.sh` — it extracts the inline module and
   `node --check`s it plus `sw.js`, `api/*.js` and `functions/*.js`, then runs
   the auto-settle date-math tests.
+
+## Long-press copy on a bill card (09 Sep 2026 — SHIPPED, v0.4.27)
+
+Built so a bill can be forwarded to whoever actually pays it — the founder's
+case: IGL is due in 2 days but his mother pays it, so he wants the details in
+WhatsApp without retyping them.
+
+- **Gesture.** Tap a feed card → detail sheet (unchanged). Press-and-hold
+  500ms → quick-action sheet: **Copy details / Edit / Delete**. Right-click
+  does the same on desktop. Wired in `billCardEl` via `attachLongPress`.
+- **What gets copied** (`billSummaryText`): name — amount / due phrasing +
+  date / frequency · category / who pays (only when the household has 2+
+  members) / paused-cancelled-auto-renew status / note. Plain text, **no
+  markdown and no emoji** so it reads like a normal message in any chat app.
+  Never the receipt image. The sheet previews the exact string before you
+  copy it.
+- **Gesture gotchas that are already handled** (don't "fix" them back):
+  `_lpFired` on the card swallows the click that trails the long-press, or
+  the detail modal opens too; the sheet is `pointer-events: none` for 350ms
+  after opening so the touchend that ended the press can't ghost-click a
+  button under the finger; 10px of drift cancels the press so scrolling the
+  feed never fires it; `contextmenu` is suppressed and `.pressable` carries
+  `-webkit-touch-callout: none` so iOS doesn't put its selection callout
+  over ours.
+- **Clipboard.** Async Clipboard API (needs a live gesture — nothing is
+  awaited before it) with an `execCommand` fallback. If both fail the sheet
+  stays open, the preview is selectable, and a toast says so. Not silent.
+- **Delete** was factored out of the detail screen into
+  `deleteBillWithConfirm(b, onStart)` so both entry points share one
+  confirm + write path. No new Firestore write path was introduced.
+- **Verified**: gates green, plus a Playwright run against a harness built
+  from the real source (25 checks: gesture, click-swallow, ghost-click
+  guard, clipboard contents, scroll-cancel, both themes). **Not yet verified
+  on the founder's phone** — that rung is still owed.
 
 ## Receipts & AI extraction (Phase 1 + 2 — SHIPPED & live)
 
