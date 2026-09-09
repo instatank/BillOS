@@ -129,7 +129,7 @@
   .app { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; }
 
   /* ─── Press primitive ──────────────────────────────────────────── */
-  .pressable { cursor: pointer; user-select: none; transition: opacity .12s, transform .12s, background .12s; }
+  .pressable { cursor: pointer; user-select: none; -webkit-touch-callout: none; transition: opacity .12s, transform .12s, background .12s; }
   .pressable:active { opacity: 0.6; }
 
   /* ─── App bar ──────────────────────────────────────────────────── */
@@ -662,6 +662,45 @@
   }
   .sheet-handle::before {
     content: ''; width: 36px; height: 4px; border-radius: 2px; background: var(--border-soft);
+  }
+
+  /* ─── Bill action sheet (long-press on a feed card) ───────────── */
+  .action-sheet-head { padding: 2px 4px 14px; text-align: center; }
+  .action-sheet-name {
+    font-family: var(--font-display); font-size: 17px; font-weight: 600;
+    color: var(--text); letter-spacing: -0.2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .action-sheet-sub { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+  .action-list { display: flex; flex-direction: column; gap: 8px; }
+  .action-item {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 13px 16px; min-height: 54px;
+    background: var(--bg-elev-1); color: var(--text);
+    border: 1px solid var(--border-soft); border-radius: var(--radius-card);
+    font-family: inherit; font-size: 15px; font-weight: 600; text-align: left;
+    cursor: pointer;
+    transition: background .12s, opacity .12s;
+  }
+  .action-item:hover { background: var(--bg-elev-2); }
+  .action-item:active { opacity: 0.65; }
+  .action-item > svg { flex-shrink: 0; color: var(--text-muted); }
+  .action-item.is-danger { color: var(--danger); }
+  .action-item.is-danger > svg { color: var(--danger); }
+  .action-label { min-width: 0; }
+  .action-sub {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--text-dim); margin-top: 2px;
+  }
+  /* Exactly what lands on the clipboard — shown so there are no surprises. */
+  .action-preview {
+    margin: 4px 2px 2px; padding: 11px 13px;
+    background: var(--bg-elev-2); border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    font-size: 12.5px; line-height: 1.5; color: var(--text-dim);
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 168px; overflow-y: auto;
+    -webkit-user-select: text; user-select: text; -webkit-touch-callout: default;
   }
 
   /* Visible navigation button — used for back/close everywhere */
@@ -1563,6 +1602,36 @@
     <a id="attViewerOpen" class="nav-btn nav-btn-pill att-viewer-open" target="_blank" rel="noopener">Open ↗</a>
   </div>
   <div id="attViewerBody" class="att-viewer-body"></div>
+</div>
+
+<!-- ─── Bill quick actions (long-press a feed card) ───────────── -->
+<div id="billActOverlay" class="modal-overlay" hidden style="z-index: 140;"></div>
+<div id="billActSheet" class="modal sheet" hidden role="dialog" aria-modal="true" aria-label="Bill actions" style="z-index: 150;">
+  <div class="modal-inner">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="modal-body field-stack" style="padding-bottom: 22px;">
+      <div class="action-sheet-head">
+        <div id="billActName" class="action-sheet-name"></div>
+        <div id="billActSub" class="action-sheet-sub"></div>
+      </div>
+      <div class="action-list">
+        <button id="billActCopy" type="button" class="action-item">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/></svg>
+          <span class="action-label">Copy details<span class="action-sub">Plain text — paste into WhatsApp or Messages</span></span>
+        </button>
+        <div id="billActPreview" class="action-preview"></div>
+        <button id="billActEdit" type="button" class="action-item">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          <span class="action-label">Edit</span>
+        </button>
+        <button id="billActDelete" type="button" class="action-item is-danger">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          <span class="action-label">Delete<span class="action-sub">Wipes the bill and its history</span></span>
+        </button>
+        <button id="billActCancel" type="button" class="btn btn-ghost" style="margin-top: 2px;">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ─── Receipt vs your entries (auto-fill conflict picker) ───── -->
@@ -3074,12 +3143,209 @@
         ${b.status === 'paused' ? '<div class="next-meta" style="color: var(--warn);">· paused</div>' : ''}
       </div>
     `;
-    card.addEventListener('click', () => openDetail(b.id));
+    // Tap → detail. Press-and-hold → Copy / Edit / Delete (the long-press
+    // sets a flag so the click that trails the gesture is swallowed).
+    card.addEventListener('click', () => {
+      if (card._lpFired) { card._lpFired = false; return; }
+      openDetail(b.id);
+    });
+    attachLongPress(card, () => openBillActions(b));
     return card;
   }
   function escapeHtml(s) {
     if (s == null) return '';
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // Long-press quick actions on a feed card (Copy / Edit / Delete)
+  //
+  // Tap still opens the detail sheet. Press-and-hold opens this instead.
+  // "Copy details" puts a plain-text summary on the clipboard so a bill can
+  // be forwarded to whoever actually pays it (WhatsApp, iMessage) as a
+  // reminder — text only, never the receipt image.
+  // ───────────────────────────────────────────────────────────────────
+
+  // Deliberately no markdown and no emoji: this has to read like an ordinary
+  // message wherever it's pasted. Mirrors the card, plus the note.
+  function billSummaryText(b) {
+    if (!b) return '';
+    const lines = [];
+    lines.push(`${(b.name || 'Untitled').trim()} — ${fmtMoney(b.amount, billCurrency(b))}`);
+
+    const due = dateFromBill(b.nextDue);
+    if (due) {
+      const n = daysFromToday(due);
+      let when;
+      if (n < -1)        when = `Overdue by ${-n} days`;
+      else if (n === -1) when = 'Was due yesterday';
+      else if (n === 0)  when = 'Due today';
+      else if (n === 1)  when = 'Due tomorrow';
+      else               when = `Due in ${n} days`;
+      lines.push(`${when} (${fmtDate(due)})`);
+    } else {
+      lines.push('No due date set');
+    }
+
+    const catLabel = CATEGORIES[b.cat || b.category]?.label;
+    const freqId   = b.freq || b.frequency || 'monthly';
+    const freqLabel = FREQS.find(f => f.id === freqId)?.label || freqId;
+    lines.push(catLabel ? `${freqLabel} · ${catLabel}` : freqLabel);
+
+    // Only worth naming when the household actually has more than one person.
+    if ((currentHousehold?.members || []).length > 1) {
+      lines.push(`Who pays: ${b.owner === 'shared' ? 'Shared' : memberLabel(b.owner)}`);
+    }
+
+    if (b.status === 'paused')         lines.push('Status: paused');
+    else if (b.status === 'cancelled') lines.push('Status: cancelled');
+    else if ((b.paymentMode || 'manual') === 'auto-renew') lines.push('Set to auto-renew');
+
+    const notes = (b.notes || '').trim();
+    if (notes) lines.push(`Note: ${notes}`);
+
+    return lines.join('\n');
+  }
+
+  // The async Clipboard API needs a live user gesture, so this is called
+  // straight off the button click with nothing awaited before it. Falls back
+  // to execCommand for contexts where the API is missing or blocked.
+  async function copyPlainText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) {
+      console.warn('[copy] clipboard API failed', err);
+    }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (err) {
+      console.warn('[copy] execCommand fallback failed', err);
+      return false;
+    }
+  }
+
+  const billAct = {
+    overlay: $('billActOverlay'),
+    sheet:   $('billActSheet'),
+    name:    $('billActName'),
+    sub:     $('billActSub'),
+    preview: $('billActPreview'),
+    copy:    $('billActCopy'),
+    edit:    $('billActEdit'),
+    del:     $('billActDelete'),
+    close:   $('billActCancel'),
+  };
+  let billActId = null;
+
+  function openBillActions(b) {
+    if (!b) return;
+    billActId = b.id;
+    const text = billSummaryText(b);
+    billAct.name.textContent = b.name || 'Untitled';
+    billAct.sub.textContent  = fmtMoney(b.amount, billCurrency(b));
+    billAct.preview.textContent = text;
+    openModal(billAct.overlay, billAct.sheet);
+    // The touchend that ends the long-press fires a click wherever the finger
+    // is — which is now over the sheet sliding up. Stay inert until it lands.
+    billAct.sheet.style.pointerEvents = 'none';
+    billAct.overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+      billAct.sheet.style.pointerEvents = '';
+      billAct.overlay.style.pointerEvents = '';
+    }, 350);
+  }
+  function closeBillActions() {
+    closeModal(billAct.overlay, billAct.sheet);
+    billActId = null;
+  }
+  function activeActionBill() { return bills.find(x => x.id === billActId) || null; }
+
+  billAct.close.addEventListener('click', closeBillActions);
+  billAct.overlay.addEventListener('click', closeBillActions);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !billAct.sheet.hidden) closeBillActions();
+  });
+
+  billAct.copy.addEventListener('click', async () => {
+    // Recompute off the live bill — a snapshot may have landed since the
+    // sheet opened. Preview text is the fallback if the bill just vanished.
+    const b = activeActionBill();
+    const text = b ? billSummaryText(b) : (billAct.preview.textContent || '');
+    if (!text) return;
+    const ok = await copyPlainText(text);
+    if (ok) {
+      closeBillActions();
+      showToast('Bill details copied — paste it into a chat.', { duration: 3500 });
+    } else {
+      // Sheet stays open: the preview above is selectable, so there's still
+      // a way through.
+      showToast("Couldn't copy automatically — press and hold the preview to select it.", { duration: 6000 });
+    }
+  });
+
+  billAct.edit.addEventListener('click', () => {
+    const b = activeActionBill();
+    if (!b) return;
+    closeBillActions();
+    // 260ms > closeModal's 240ms teardown, so the body scroll-lock the add
+    // sheet sets isn't cleared out from under it.
+    setTimeout(() => openAddBill(b), 260);
+  });
+
+  billAct.del.addEventListener('click', async () => {
+    const b = activeActionBill();
+    if (!b) return;
+    const done = await deleteBillWithConfirm(b);
+    if (done) closeBillActions();
+  });
+
+  const LONG_PRESS_MS   = 500;
+  const LONG_PRESS_SLOP = 10;   // px of finger drift before it counts as a scroll
+
+  // Pointer events cover touch and mouse in one path. The native context menu
+  // is suppressed so iOS doesn't put its own callout over ours.
+  function attachLongPress(el, onLongPress) {
+    let timer = null, startX = 0, startY = 0;
+    const stop = () => { if (timer) { clearTimeout(timer); timer = null; } };
+
+    el.addEventListener('pointerdown', (ev) => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      stop();
+      el._lpFired = false;
+      startX = ev.clientX; startY = ev.clientY;
+      timer = setTimeout(() => {
+        timer = null;
+        el._lpFired = true;                        // swallow the click that follows
+        try { navigator.vibrate?.(12); } catch {}  // Android only; no-op elsewhere
+        onLongPress();
+      }, LONG_PRESS_MS);
+    });
+    el.addEventListener('pointermove', (ev) => {
+      if (!timer) return;
+      if (Math.abs(ev.clientX - startX) > LONG_PRESS_SLOP
+       || Math.abs(ev.clientY - startY) > LONG_PRESS_SLOP) stop();
+    });
+    el.addEventListener('pointerup', stop);
+    el.addEventListener('pointercancel', stop);
+    el.addEventListener('pointerleave', stop);
+    el.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();   // no iOS callout / browser menu over ours
+      // Right-click is the desktop version of the same intent. Touch-driven
+      // contextmenu (button 0) is left alone — the timer above already has it.
+      if (ev.button === 2) { stop(); el._lpFired = true; onLongPress(); }
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────
@@ -3877,24 +4143,33 @@
     dt.delete.disabled = false;
     dt.delete.textContent = 'Delete';
   }
-  dt.delete.addEventListener('click', async () => {
-    const b = bills.find(x => x.id === activeDetailBillId);
-    if (!b || !currentHouseholdId) return;
+  // Shared by the detail screen's Delete button and the long-press action
+  // sheet. Resolves true when the doc is gone, false on cancel/failure.
+  async function deleteBillWithConfirm(b, onStart) {
+    if (!b || !currentHouseholdId) return false;
     const name = b.name || 'this bill';
-    if (!confirm(`Permanently delete "${name}"? This wipes the bill and its history. Can't be undone.`)) return;
-    dt.delete.disabled = true;
-    dt.delete.textContent = 'Deleting…';
+    if (!confirm(`Permanently delete "${name}"? This wipes the bill and its history. Can't be undone.`)) return false;
+    if (onStart) onStart();
     try {
       await deleteDoc(doc(db, 'households', currentHouseholdId, 'bills', b.id));
       console.log('[bills] deleted', b.id);
-      resetDeleteButton();
-      closeDetail();
       showToast(`${name} deleted`, { duration: 3500 });
+      return true;
     } catch (err) {
       console.error('[bills] delete failed', err);
       alert("Couldn't delete bill: " + (err.message || err.code));
-      resetDeleteButton();
+      return false;
     }
+  }
+  dt.delete.addEventListener('click', async () => {
+    const b = bills.find(x => x.id === activeDetailBillId);
+    if (!b || !currentHouseholdId) return;
+    const done = await deleteBillWithConfirm(b, () => {
+      dt.delete.disabled = true;
+      dt.delete.textContent = 'Deleting…';
+    });
+    resetDeleteButton();
+    if (done) closeDetail();
   });
 
   // ───────────────────────────────────────────────────────────────────
