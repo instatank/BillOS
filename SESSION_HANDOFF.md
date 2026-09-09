@@ -19,7 +19,8 @@ Read this + `CLAUDE.md` + `SYNC.md` first thing in a new session.
 - **SW cache**: bump `VERSION` in `sw.js` on every shippable change so
   clients evict the old shell. Bump on every ship.
 - **Branch state (09 Sep 2026)**: production `claude/design-system` is at
-  **`v0.4.27`** (commit `f2b981d`), Vercel deploy READY. Nothing is sitting
+  **`ac476dd`**, serving **`v0.4.27`** (bumped in `f2b981d`); Vercel deploy
+  READY and the live `/sw.js` was checked, not assumed. Nothing is sitting
   unshipped. The auto-renew auto-settle work (`e2c3db5`, v0.4.26) reached
   production in the `e586c03` merge — an earlier handoff called it unshipped;
   it isn't. Long-press copy (`f2b981d`, v0.4.27) shipped on top of it from

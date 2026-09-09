@@ -48,3 +48,35 @@ a session never fills them for you.
   runs first, it reports a stale world, e.g. bills shown as unpaid that the system settles
   minutes later. Pick the order deliberately rather than letting the two land wherever.)
 - Internalized: no
+
+### 2026-09-09 — The handoff doc was true when written, and false by the time it was read
+- What happened: `SESSION_HANDOFF.md` opened this session saying production was
+  `v0.4.25` and that the auto-renew auto-settle work was **unshipped**, sitting on a
+  feature branch waiting to be fast-forwarded. Both were wrong. That work had reached
+  production weeks earlier, carried in on a merge commit (`e586c03`) made from a
+  *different* branch by a *different* session. Nobody edited the handoff to lie — the
+  sentence was accurate on 16 Aug, when the previous `/wrap` wrote it. It went stale
+  because someone shipped, and shipping doesn't edit prose. Cost this time was small
+  (a couple of `git merge-base` checks). The expensive version is a session that
+  believes it, "ships" the already-shipped work, and reports a deploy that changed
+  nothing — or worse, one that reads "production is v0.4.25" and reasons about a bug
+  against code that hasn't been live for a month.
+- Concept: a document that asserts *current deploy state* is a cache, and it has no
+  invalidation. Every other fact in a handoff ("the gate is `scripts/check.sh`", "the
+  production branch is `claude/design-system`") stays true until someone deliberately
+  changes it. Facts about *what is live right now* stop being true through actions
+  taken somewhere else entirely, by people not reading the doc. So those facts get
+  re-derived, never trusted — and the cheapest honest source is the deployed artifact
+  itself (fetch the live `/sw.js`, read its `VERSION`), not the repo, because the repo
+  only tells you what *should* be live. Prose about deploy state should also say how it
+  was checked, so the next reader knows whether it was verified or copied forward.
+- In my words: (pending — answer at next wrap)
+- Where else: (pending — answer at next wrap)
+- Quiz question: "The handoff says 'reminder pushes go out at 08:00 IST' and also
+  'production is at v0.4.27'. A month passes. Which of those two sentences do you
+  re-check before trusting it, and how would you check it in under a minute?"
+  (Answer: the version one — the 08:00 schedule only changes if someone deliberately
+  edits that rule, but what's live changes every time anyone ships from anywhere.
+  Check it by opening the live site's `/sw.js` and reading `VERSION`, which is the
+  deployed artifact rather than the repo's opinion of it.)
+- Internalized: no
